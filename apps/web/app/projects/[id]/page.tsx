@@ -64,6 +64,17 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
 
   useEffect(() => { void load(); }, [projectId]);
 
+  useEffect(() => {
+    const hasActive = deployments.some((dep) => dep.status === "queued" || dep.status === "building");
+    if (!hasActive) return;
+
+    const interval = setInterval(() => {
+      void load();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [deployments]);
+
   async function deploy() {
     if (!projectId) return;
     setError("");
