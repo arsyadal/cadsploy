@@ -67,39 +67,63 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
   async function deploy() {
     if (!projectId) return;
     setError("");
-    await apiFetch(`/api/projects/${projectId}/deployments`, { method: "POST" });
-    await load();
+    try {
+      await apiFetch(`/api/projects/${projectId}/deployments`, { method: "POST" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to trigger deployment");
+    }
   }
 
   async function refreshRuntimeLogs() {
     if (!projectId) return;
-    const payload = await apiFetch<RuntimeLogsPayload>(`/api/projects/${projectId}/runtime-logs`);
-    setRuntimeLogs(payload.logs);
+    setError("");
+    try {
+      const payload = await apiFetch<RuntimeLogsPayload>(`/api/projects/${projectId}/runtime-logs`);
+      setRuntimeLogs(payload.logs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load runtime logs");
+    }
   }
 
   async function restartLatest() {
     const latest = deployments.find((item) => item.status === "running") ?? deployments[0];
     if (!latest) return;
-    await apiFetch(`/api/deployments/${latest.id}/restart`, { method: "POST" });
-    await refreshRuntimeLogs();
+    setError("");
+    try {
+      await apiFetch(`/api/deployments/${latest.id}/restart`, { method: "POST" });
+      await refreshRuntimeLogs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to restart container");
+    }
   }
 
   async function saveEnv(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!projectId) return;
-    await apiFetch(`/api/projects/${projectId}/env`, {
-      method: "POST",
-      body: JSON.stringify({ key: envKey, value: envValue, scope: "both" }),
-    });
-    setEnvKey("");
-    setEnvValue("");
-    await load();
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/env`, {
+        method: "POST",
+        body: JSON.stringify({ key: envKey, value: envValue, scope: "both" }),
+      });
+      setEnvKey("");
+      setEnvValue("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save env variable");
+    }
   }
 
   async function deleteProject() {
     if (!projectId || !confirm("Delete this project? Container cleanup is handled by runtime ops.")) return;
-    await apiFetch(`/api/projects/${projectId}`, { method: "DELETE" });
-    window.location.href = "/dashboard";
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}`, { method: "DELETE" });
+      window.location.href = "/dashboard";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete project");
+    }
   }
 
   return (
