@@ -169,7 +169,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 <tbody>
                   {deployments.map((item) => (
                     <tr key={item.id}>
-                      <td><span className="status">{item.status}</span></td>
+                      <td><span className={`status ${item.status}`}>{item.status}</span></td>
                       <td>{new Date(item.createdAt).toLocaleString()}<br /><span className="muted">{item.commitSha?.slice(0, 7) ?? "no commit yet"}</span></td>
                     </tr>
                   ))}
