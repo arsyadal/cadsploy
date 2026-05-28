@@ -57,12 +57,13 @@ export async function deploy(deploymentId: string) {
     await log(`Starting deployment for ${project.repoOwner}/${project.repoName}#${project.branch}`);
 
     const githubToken = decryptText(project.user.githubAccessTokenEncrypted);
+    const base64Auth = Buffer.from(`${githubToken}:`).toString("base64");
     const repoHttpsUrl = `https://github.com/${project.repoOwner}/${project.repoName}.git`;
 
     await log("Cloning repository");
     await runCommand(
       "git",
-      ["-c", `http.extraHeader=Authorization: Bearer ${githubToken}`, "clone", "--depth", "1", "--branch", project.branch, repoHttpsUrl, repoDir],
+      ["-c", `http.extraHeader=Authorization: Basic ${base64Auth}`, "clone", "--depth", "1", "--branch", project.branch, repoHttpsUrl, repoDir],
       { onLog: log, timeoutMs: 5 * 60_000 },
     );
 
