@@ -154,6 +154,10 @@ export async function deploy(deploymentId: string) {
     });
     throw error;
   } finally {
-    await rm(workdir, { recursive: true, force: true });
+    try {
+      await rm(workdir, { recursive: true, force: true });
+    } catch (cleanupError) {
+      console.warn("[worker] Temp workdir cleanup failed, ignoring:", cleanupError);
+    }
   }
 }
