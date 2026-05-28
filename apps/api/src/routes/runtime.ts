@@ -7,6 +7,18 @@ import { prisma } from "../db.js";
 
 const execFileAsync = promisify(execFile);
 
+async function runDockerCommand(args: string[], timeoutMs: number) {
+  let cmd = "docker";
+  let cmdArgs = args;
+
+  if (process.platform === "win32") {
+    cmd = "wsl";
+    cmdArgs = ["docker", ...args];
+  }
+
+  return execFileAsync(cmd, cmdArgs, { timeout: timeoutMs, maxBuffer: 1024 * 512 });
+}
+
 export async function runtimeRoutes(app: FastifyInstance) {
   app.get("/api/projects/:id/runtime-logs", async (request) => {
     const user = await requireUser(request);
@@ -21,7 +33,7 @@ export async function runtimeRoutes(app: FastifyInstance) {
     if (!deployment?.containerName) return { logs: "" };
 
     try {
-      const { stdout, stderr } = await execFileAsync("docker", ["logs", "--tail", "300", deployment.containerName], { timeout: 10_000, maxBuffer: 1024 * 512 });
+      const { stdout, stderr } = await runDockerCommand(["logs", "--tail", "300", deployment.containerName], 10_000);
       return { logs: `${stdout}${stderr}` };
     } catch (error) {
       request.log.warn({ error }, "failed to read runtime logs");
@@ -35,7 +47,7 @@ export async function runtimeRoutes(app: FastifyInstance) {
     const deployment = await prisma.deployment.findFirst({ where: { id: params.id, project: { userId: user.id }, containerName: { not: null } } });
     if (!deployment?.containerName) throw app.httpErrors.notFound("Running deployment not found");
 
-    await execFileAsync("docker", ["restart", deployment.containerName], { timeout: 20_000 });
+    await runDockerCommand(["restart", deployment.containerName], 20_000);
     return { ok: true };
   });
 }
