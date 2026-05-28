@@ -44,8 +44,15 @@ export async function runtimeRoutes(app: FastifyInstance) {
   app.post("/api/deployments/:id/restart", async (request) => {
     const user = await requireUser(request);
     const params = z.object({ id: z.string().uuid() }).parse(request.params);
-    const deployment = await prisma.deployment.findFirst({ where: { id: params.id, project: { userId: user.id }, containerName: { not: null } } });
-    if (!deployment?.containerName) throw app.httpErrors.notFound("Running deployment not found");
+    const deployment = await prisma.deployment.findFirst({
+      where: {
+        id: params.id,
+        status: "running",
+        project: { userId: user.id },
+        containerName: { not: null },
+      },
+    });
+    if (!deployment?.containerName) throw app.httpErrors.badRequest("No active running container found for this deployment");
 
     await runDockerCommand(["restart", deployment.containerName], 20_000);
     return { ok: true };
