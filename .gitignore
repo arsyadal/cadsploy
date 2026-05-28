@@ -1,0 +1,12 @@
+node_modules
+.next
+dist
+.env
+.env.*
+!.env.example
+.cadsploy
+infra/Caddyfile.generated
+apps/api/prisma/migrations
+*.log
+*.tsbuildinfo
+.DS_Store

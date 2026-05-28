@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BuildMethod {
+  dockerfile
+  nixpacks
+}
+
+enum ProjectStatus {
+  active
+  inactive
+  deleted
+}
+
+enum DeploymentStatus {
+  queued
+  building
+  running
+  failed
+  canceled
+}
+
+enum EnvScope {
+  build
+  runtime
+  both
+}
+
+enum LogStream {
+  stdout
+  stderr
+}
+
+enum DomainType {
+  generated
+  custom
+}
+
+enum DomainStatus {
+  active
+  inactive
+}
+
+model User {
+  id                         String    @id @default(uuid())
+  githubId                   String    @unique @map("github_id")
+  username                   String
+  email                      String?
+  avatarUrl                  String?   @map("avatar_url")
+  githubAccessTokenEncrypted String    @map("github_access_token_encrypted")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  updatedAt                  DateTime  @updatedAt @map("updated_at")
+
+  projects Project[]
+  sessions Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  userId      String        @map("user_id")
+  name        String
+  slug        String        @unique
+  repoOwner   String        @map("repo_owner")
+  repoName    String        @map("repo_name")
+  repoUrl     String        @map("repo_url")
+  branch      String
+  buildMethod BuildMethod   @map("build_method")
+  appPort     Int           @map("app_port")
+  status      ProjectStatus @default(active)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deployments Deployment[]
+  envVars     EnvVar[]
+  domains     Domain[]
+
+  @@index([userId])
+  @@map("projects")
+}
+
+model Deployment {
+  id            String           @id @default(uuid())
+  projectId     String           @map("project_id")
+  commitSha     String?          @map("commit_sha")
+  imageTag      String           @map("image_tag")
+  containerName String?          @map("container_name")
+  status        DeploymentStatus @default(queued)
+  startedAt     DateTime?        @map("started_at")
+  finishedAt    DateTime?        @map("finished_at")
+  errorMessage  String?          @map("error_message")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  buildLogs BuildLog[]
+
+  @@index([projectId, createdAt])
+  @@map("deployments")
+}
+
+model EnvVar {
+  id             String   @id @default(uuid())
+  projectId      String   @map("project_id")
+  key            String
+  valueEncrypted String   @map("value_encrypted")
+  scope          EnvScope @default(both)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, key])
+  @@map("env_vars")
+}
+
+model BuildLog {
+  id           String    @id @default(uuid())
+  deploymentId String    @map("deployment_id")
+  line         String
+  stream       LogStream
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  deployment Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
+  @@index([deploymentId, createdAt])
+  @@map("build_logs")
+}
+
+model Domain {
+  id        String       @id @default(uuid())
+  projectId String       @map("project_id")
+  hostname  String       @unique
+  type      DomainType   @default(generated)
+  status    DomainStatus @default(active)
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("domains")
+}

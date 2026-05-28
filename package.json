@@ -1,0 +1,28 @@
+{
+  "name": "cadsploy",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,worker,web -c cyan,yellow,green \"npm run dev -w @cadsploy/api\" \"npm run dev -w @cadsploy/worker\" \"npm run dev -w @cadsploy/web\"",
+    "build": "npm run build -w @cadsploy/api && npm run build -w @cadsploy/worker && npm run build -w @cadsploy/web",
+    "typecheck": "npm run typecheck -w @cadsploy/api && npm run typecheck -w @cadsploy/worker && npm run typecheck -w @cadsploy/web",
+    "prisma:generate": "prisma generate --schema apps/api/prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema apps/api/prisma/schema.prisma",
+    "prisma:studio": "prisma studio --schema apps/api/prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "concurrently": "^9.1.2",
+    "prisma": "^6.8.2",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.15"
+    }
+  }
+}

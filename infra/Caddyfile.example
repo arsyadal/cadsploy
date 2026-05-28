@@ -1,0 +1,9 @@
+# Example Caddy entrypoint for Cadsploy.
+# In production, mount infra/Caddyfile.generated to /etc/caddy/Caddyfile
+# and set CADSPLOY_CADDY_RELOAD_COMMAND accordingly.
+
+# Generated app routes will look like:
+# app.example.com {
+#   encode zstd gzip
+#   reverse_proxy cadsploy-app:3000
+# }
