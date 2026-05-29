@@ -4,6 +4,7 @@ import { config } from "./config.js";
 export type DeployJob = {
   deploymentId?: string;
   databaseId?: string;
+  backupId?: string;
 };
 
 export function redisOptions(url: string): ConnectionOptions {

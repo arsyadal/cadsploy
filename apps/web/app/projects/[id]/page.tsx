@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, apiUrl } from "../../../lib/api";
 
 type Project = {
   id: string;
@@ -44,6 +44,7 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
   const [newDbName, setNewDbName] = useState("");
   const [newDbType, setNewDbType] = useState<"postgres" | "redis">("postgres");
   const [revealPasswords, setRevealPasswords] = useState<Record<string, boolean>>({});
+  const [backups, setBackups] = useState<Record<string, Array<{ id: string; fileName: string; fileSize: number | null; status: string; errorMessage: string | null; createdAt: string; completedAt: string | null }>>>({});
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -67,9 +68,58 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
       setProjectDomains(domainsPayload.domains);
       const databasesPayload = await apiFetch<{ databases: typeof projectDatabases }>(`/api/projects/${id}/databases`);
       setProjectDatabases(databasesPayload.databases);
+      
+      for (const db of databasesPayload.databases) {
+        const backupsPayload = await apiFetch<{ backups: any[] }>(`/api/projects/${id}/databases/${db.id}/backups`);
+        setBackups((prev) => ({
+          ...prev,
+          [db.id]: backupsPayload.backups
+        }));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load project");
     }
+  }
+
+  async function createBackup(dbId: string) {
+    if (!projectId) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/databases/${dbId}/backups`, { method: "POST" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create backup");
+    }
+  }
+
+  async function restoreBackup(dbId: string, backupId: string) {
+    if (!projectId || !confirm("Restore this backup? Existing tables and data will be clean-replaced. This operation cannot be undone.")) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/databases/${dbId}/backups/${backupId}/restore`, { method: "POST" });
+      alert("Database restore job has been scheduled in background.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to restore backup");
+    }
+  }
+
+  async function deleteBackup(dbId: string, backupId: string) {
+    if (!projectId || !confirm("Permanently delete this backup file?")) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/databases/${dbId}/backups/${backupId}`, { method: "DELETE" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete backup");
+    }
+  }
+
+  function formatSize(bytes: number | null) {
+    if (bytes === null || bytes === undefined) return "Calculating…";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   useEffect(() => { void load(); }, [projectId]);
@@ -385,6 +435,73 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                                     : `postgresql://${item.dbUser}:••••••••@${item.containerName}:${item.port}/${item.dbName}`}
                                 </code>
                               </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ marginTop: 12, borderTop: "1px solid #333", paddingTop: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <strong style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>Backups</strong>
+                            <button
+                              className="btn primary"
+                              style={{ padding: "3px 8px", fontSize: 10 }}
+                              onClick={() => createBackup(item.id)}
+                            >
+                              Backup Now
+                            </button>
+                          </div>
+                          {backups[item.id]?.length > 0 ? (
+                            <table style={{ width: "100%", fontSize: 11, marginTop: 4 }}>
+                              <tbody>
+                                {backups[item.id].map((b) => (
+                                  <tr key={b.id} style={{ borderBottom: "1px solid #222" }}>
+                                    <td style={{ padding: "4px 0", color: "#ccc" }}>
+                                      {new Date(b.createdAt).toLocaleString()}
+                                    </td>
+                                    <td style={{ padding: "4px 0" }}>
+                                      <code>{formatSize(b.fileSize)}</code>
+                                    </td>
+                                    <td style={{ padding: "4px 0" }}>
+                                      <span className={`status ${b.status}`} style={{ fontSize: 9, padding: "1px 4px" }}>
+                                        {b.status}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: "4px 0", textAlign: "right" }}>
+                                      {b.status === "completed" && (
+                                        <>
+                                          <a
+                                            href={`${apiUrl}/api/projects/${projectId}/databases/${item.id}/backups/${b.id}/download`}
+                                            className="btn"
+                                            style={{ padding: "2px 6px", fontSize: 9, display: "inline-block", marginRight: 4 }}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                          >
+                                            Download
+                                          </a>
+                                          <button
+                                            className="btn"
+                                            style={{ padding: "2px 6px", fontSize: 9, marginRight: 4 }}
+                                            onClick={() => restoreBackup(item.id, b.id)}
+                                          >
+                                            Restore
+                                          </button>
+                                        </>
+                                      )}
+                                      <button
+                                        className="btn danger"
+                                        style={{ padding: "2px 6px", fontSize: 9 }}
+                                        onClick={() => deleteBackup(item.id, b.id)}
+                                      >
+                                        Delete
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <div style={{ fontSize: 10, color: "#666", fontStyle: "italic", marginTop: 4 }}>
+                              No backups created yet.
                             </div>
                           )}
                         </div>

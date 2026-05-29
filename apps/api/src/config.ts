@@ -1,3 +1,10 @@
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const repoRoot = resolve(__dirname, "../../../");
+
 const required = (key: string, fallback?: string) => {
   const value = process.env[key] ?? fallback;
   if (!value) throw new Error(`Missing required env: ${key}`);
@@ -17,6 +24,7 @@ export const config = {
   githubClientId: process.env.GITHUB_CLIENT_ID ?? "",
   githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
   githubCallbackUrl: required("GITHUB_CALLBACK_URL", "http://localhost:4000/auth/github/callback"),
+  backupsDir: resolve(repoRoot, "backups"),
 };
 
 export const isProduction = config.nodeEnv === "production";

@@ -25,5 +25,6 @@ export const config = {
   defaultCpus: required("CADSPLOY_DEFAULT_CPUS", "0.5"),
   caddyfile: resolvePath(required("CADSPLOY_CADDYFILE", "./infra/Caddyfile.generated")),
   caddyReloadCommand: process.env.CADSPLOY_CADDY_RELOAD_COMMAND ?? "",
+  backupsDir: resolvePath(required("CADSPLOY_BACKUPS_DIR", "backups")),
 };
 

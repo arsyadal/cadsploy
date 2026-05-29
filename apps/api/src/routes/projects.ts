@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { BuildMethod, EnvScope } from "@prisma/client";
 import { z } from "zod";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { requireUser } from "../auth.js";
 import { config } from "../config.js";
 import { encryptText, decryptText } from "../crypto.js";
@@ -359,5 +361,155 @@ export async function projectRoutes(app: FastifyInstance) {
 
     await deployQueue.add("delete-database", { databaseId: db.id });
     return { ok: true };
+  });
+
+  app.get("/api/projects/:id/databases/:databaseId/backups", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      databaseId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const db = await prisma.databaseService.findFirst({
+      where: { id: params.databaseId, projectId: project.id }
+    });
+    if (!db) throw app.httpErrors.notFound("Database service not found");
+
+    const backups = await prisma.databaseBackup.findMany({
+      where: { databaseServiceId: db.id },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return { backups };
+  });
+
+  app.post("/api/projects/:id/databases/:databaseId/backups", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      databaseId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const db = await prisma.databaseService.findFirst({
+      where: { id: params.databaseId, projectId: project.id, status: { not: "deleted" } }
+    });
+    if (!db) throw app.httpErrors.notFound("Database service not found");
+
+    const ext = db.type === "postgres" ? "dump" : "rdb";
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const fileName = `${db.name}-backup-${timestamp}.${ext}`;
+
+    const backup = await prisma.databaseBackup.create({
+      data: {
+        databaseServiceId: db.id,
+        fileName,
+        status: "pending",
+      }
+    });
+
+    await deployQueue.add("backup-database", { backupId: backup.id });
+    return { backup };
+  });
+
+  app.post("/api/projects/:id/databases/:databaseId/backups/:backupId/restore", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      databaseId: z.string().uuid(),
+      backupId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const db = await prisma.databaseService.findFirst({
+      where: { id: params.databaseId, projectId: project.id, status: { not: "deleted" } }
+    });
+    if (!db) throw app.httpErrors.notFound("Database service not found");
+
+    const backup = await prisma.databaseBackup.findFirst({
+      where: { id: params.backupId, databaseServiceId: db.id }
+    });
+    if (!backup) throw app.httpErrors.notFound("Backup not found");
+
+    if (backup.status !== "completed") {
+      throw app.httpErrors.badRequest("Cannot restore a backup that is not completed");
+    }
+
+    await deployQueue.add("restore-database", { backupId: backup.id });
+    return { ok: true };
+  });
+
+  app.delete("/api/projects/:id/databases/:databaseId/backups/:backupId", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      databaseId: z.string().uuid(),
+      backupId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const db = await prisma.databaseService.findFirst({
+      where: { id: params.databaseId, projectId: project.id }
+    });
+    if (!db) throw app.httpErrors.notFound("Database service not found");
+
+    const backup = await prisma.databaseBackup.findFirst({
+      where: { id: params.backupId, databaseServiceId: db.id }
+    });
+    if (!backup) throw app.httpErrors.notFound("Backup not found");
+
+    const filePath = path.resolve(config.backupsDir, `${backup.id}.${db.type === "postgres" ? "dump" : "rdb"}`);
+    await fs.unlink(filePath).catch(() => undefined);
+
+    await prisma.databaseBackup.delete({
+      where: { id: backup.id }
+    });
+
+    return { ok: true };
+  });
+
+  app.get("/api/projects/:id/databases/:databaseId/backups/:backupId/download", async (request, reply) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      databaseId: z.string().uuid(),
+      backupId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const db = await prisma.databaseService.findFirst({
+      where: { id: params.databaseId, projectId: project.id }
+    });
+    if (!db) throw app.httpErrors.notFound("Database service not found");
+
+    const backup = await prisma.databaseBackup.findFirst({
+      where: { id: params.backupId, databaseServiceId: db.id }
+    });
+    if (!backup) throw app.httpErrors.notFound("Backup not found");
+
+    const fileExt = db.type === "postgres" ? "dump" : "rdb";
+    const filePath = path.resolve(config.backupsDir, `${backup.id}.${fileExt}`);
+
+    try {
+      await fs.access(filePath);
+      const fileStream = await fs.readFile(filePath);
+      void reply
+        .header("Content-Disposition", `attachment; filename="${backup.fileName}"`)
+        .header("Content-Type", "application/octet-stream")
+        .send(fileStream);
+    } catch {
+      throw app.httpErrors.notFound("Backup file not found on disk");
+    }
   });
 }

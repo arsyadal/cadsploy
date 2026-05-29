@@ -10,3 +10,4 @@ apps/api/prisma/migrations
 *.log
 *.tsbuildinfo
 .DS_Store
+backups

@@ -4,6 +4,7 @@ import { config } from "./config.js";
 import { deploy } from "./deploy.js";
 import { regenerateCaddyfile } from "./proxy.js";
 import { deployDatabase, deleteDatabase } from "./database.js";
+import { backupDatabase, restoreDatabase } from "./backup.js";
 
 type DeployJob = {
   deploymentId?: string;
@@ -38,6 +39,12 @@ const worker = new Worker<DeployJob, void, string>(
     } else if (job.name === "delete-database") {
       if (!job.data.databaseId) throw new Error("Missing databaseId for delete-database job");
       await deleteDatabase(job.data.databaseId);
+    } else if (job.name === "backup-database") {
+      if (!job.data.backupId) throw new Error("Missing backupId for backup-database job");
+      await backupDatabase(job.data.backupId);
+    } else if (job.name === "restore-database") {
+      if (!job.data.backupId) throw new Error("Missing backupId for restore-database job");
+      await restoreDatabase(job.data.backupId);
     }
   },
   {
