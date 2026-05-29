@@ -3,8 +3,11 @@
 import { useState, useEffect } from "react";
 import { apiUrl } from "../lib/api";
 
+type FrameworkKey = "nextjs" | "express" | "fastapi" | "go";
+
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"git" | "build" | "caddy" | "backup">("git");
+  const [selectedFramework, setSelectedFramework] = useState<FrameworkKey>("nextjs");
   const [ramLimit, setRamLimit] = useState<number>(512);
   const [cpuLimit, setCpuLimit] = useState<number>(0.5);
   const [pulseCpu, setPulseCpu] = useState<number>(4.2);
@@ -67,6 +70,45 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
 [volume-backup-worker] Status: completed`
   };
 
+  const frameworkBlueprints = {
+    nextjs: {
+      name: "Next.js",
+      install: "npm clean-install",
+      build: "npm run build (next build)",
+      port: 3000,
+      detect: "package.json, next.config.js",
+      icon: "▲",
+      dockerCommand: "nixpacks build . --name my-nextjs-app"
+    },
+    express: {
+      name: "Node/Express",
+      install: "npm install",
+      build: "node index.js",
+      port: 8080,
+      detect: "package.json, index.js",
+      icon: "⬢",
+      dockerCommand: "nixpacks build . --name my-express-api"
+    },
+    fastapi: {
+      name: "Python FastAPI",
+      install: "pip install -r requirements.txt",
+      build: "uvicorn main:app --host 0.0.0.0 --port 8000",
+      port: 8000,
+      detect: "requirements.txt, main.py",
+      icon: "🐍",
+      dockerCommand: "nixpacks build . --name my-fastapi-app"
+    },
+    go: {
+      name: "Go Fiber",
+      install: "go mod download",
+      build: "go build -o main . && ./main",
+      port: 8080,
+      detect: "go.mod, main.go",
+      icon: "🐹",
+      dockerCommand: "nixpacks build . --name my-go-service"
+    }
+  };
+
   const handleCopyCommand = () => {
     navigator.clipboard.writeText("git push origin main");
     setIsCopied(true);
@@ -75,7 +117,7 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
 
   return (
     <main className="shell" style={{ maxWidth: "1200px" }}>
-      {/* 1. Header/Navbar */}
+      {/* 1. Navbar */}
       <nav className="nav" style={{ borderBottom: "1px solid var(--line)", paddingBottom: "20px", marginBottom: "20px" }}>
         <a className="logo" href="/">
           <span className="logo-mark" />
@@ -84,47 +126,52 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
             Beta 1.2
           </span>
         </a>
-        <div className="nav-links">
+        <div style={{ display: "flex", gap: "20px", alignItems: "center" }} className="nav-links">
+          <a href="#features" className="muted" style={{ fontSize: "13px" }}>Features</a>
+          <a href="#templates" className="muted" style={{ fontSize: "13px" }}>Templates</a>
+          <a href="#pricing" className="muted" style={{ fontSize: "13px" }}>Pricing</a>
           <a className="btn" href="/dashboard" style={{ fontSize: "13px" }}>Dashboard</a>
           <a className="btn primary" href={`${apiUrl}/auth/github`} style={{ fontSize: "13px" }}>
             <svg style={{ width: 14, height: 14, fill: "currentColor", marginRight: "6px" }} viewBox="0 0 16 16">
               <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
             </svg>
-            Connect GitHub
+            Sign in
           </a>
         </div>
       </nav>
 
       {/* 2. Hero Section */}
-      <section className="hero" style={{ paddingTop: "20px", paddingBottom: "40px", gap: "32px" }}>
+      <section className="hero" style={{ paddingTop: "40px", paddingBottom: "60px", gap: "32px" }}>
         <div>
-          <h1 style={{ marginBottom: "16px" }}>
-            Deploy<br />
-            <span style={{ color: "var(--accent)", textShadow: "0 0 15px rgba(215, 255, 66, 0.25)" }}>anything</span><br />
-            containerized.
+          <span style={{ fontSize: "11px", background: "rgba(215, 255, 66, 0.1)", color: "var(--accent)", border: "1px solid rgba(215, 255, 66, 0.3)", padding: "4px 12px", textTransform: "uppercase", letterSpacing: 1, display: "inline-block", marginBottom: "20px" }}>
+            🚀 The Self-Hosted Cloud Provider
+          </span>
+          <h1 style={{ marginBottom: "16px", fontSize: "clamp(48px, 8vw, 96px)" }}>
+            Ship software<br />
+            <span style={{ color: "var(--accent)", textShadow: "0 0 15px rgba(215, 255, 66, 0.25)" }}>peacefully.</span>
           </h1>
-          <p className="lede" style={{ marginBottom: "28px", fontSize: "20px", color: "var(--muted)" }}>
-            A minimalist, brutalist Docker deployment control room for your own VPS. Import GitHub repositories, build automatically, configure custom memory and CPU limits, and manage databases with volume backups—all inside a single self-hosted platform.
+          <p className="lede" style={{ marginBottom: "32px", fontSize: "20px", color: "var(--muted)" }}>
+            Vercel simplicity meets Railway flexibility, running entirely on your own server. Deploy Dockerized apps, microservices, databases, and cron workers without premium platform markups.
           </p>
           <div className="actions" style={{ marginBottom: "40px" }}>
             <a className="btn primary" href={`${apiUrl}/auth/github`} style={{ padding: "14px 28px", fontSize: "15px" }}>
-              Start Shipping Now
+              Deploy to Production
             </a>
-            <a className="btn" href="/dashboard" style={{ padding: "14px 28px", fontSize: "15px" }}>
-              Launch Console
+            <a className="btn" href="/dashboard" style={{ padding: "14px 28px", fontSize: "15px", border: "1px solid var(--line)" }}>
+              Open Console
             </a>
           </div>
 
           {/* Interactive Resource Limits Simulator widget */}
           <div className="panel" style={{ background: "rgba(26, 24, 18, 0.85)", borderColor: "var(--line)", padding: "20px" }}>
-            <h3 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "14px", textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink)", margin: "0 0 16px" }}>
-              ⚡ Interactive Resource Simulator
+            <h3 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "13px", textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink)", margin: "0 0 16px" }}>
+              ⚡ Interactive VPS Resource Slice
             </h3>
             
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
               <div className="field">
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <label>Memory (RAM): <strong>{ramLimit} MB</strong></label>
+                  <label style={{ fontSize: "11px" }}>Container RAM: <strong>{ramLimit} MB</strong></label>
                 </div>
                 <input 
                   type="range" 
@@ -139,7 +186,7 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
 
               <div className="field">
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <label>CPU Limit: <strong>{cpuLimit} Cores</strong></label>
+                  <label style={{ fontSize: "11px" }}>Container CPU: <strong>{cpuLimit} Cores</strong></label>
                 </div>
                 <input 
                   type="range" 
@@ -154,28 +201,28 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
             </div>
 
             <div style={{ background: "#0c0b08", borderLeft: "3px solid var(--accent)", padding: "12px 16px", fontFamily: "IBM Plex Mono, monospace", fontSize: "12px" }}>
-              <span style={{ color: "#888" }}># Docker Runtime Parameters:</span><br />
+              <span style={{ color: "#888" }}># Docker Engine Sandbox:</span><br />
               <span style={{ color: "var(--accent)" }}>docker run</span> \
               <br />&nbsp;&nbsp;--memory <span style={{ color: "var(--ink)" }}>"{ramLimit}m"</span> \
               <br />&nbsp;&nbsp;--cpus <span style={{ color: "var(--ink)" }}>"{cpuLimit}"</span> \
-              <br />&nbsp;&nbsp;--name cadsploy-user-app -d -p 80:3000 my-image:latest
+              <br />&nbsp;&nbsp;--name cadsploy-app -d -p 80:3000 my-image:latest
             </div>
           </div>
         </div>
 
-        {/* Right Side: Sleek Interactive Live Terminal Room */}
+        {/* Right Side: Interactive Terminal Deck */}
         <aside className="panel" style={{ display: "flex", flexDirection: "column", height: "100%", justifyContent: "space-between" }}>
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
               <h2 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "14px", textTransform: "uppercase", letterSpacing: 0.5, margin: 0 }}>
-                Live Deployment Pipeline
+                Continuous Delivery Logs
               </h2>
               <button 
                 className="btn" 
                 style={{ padding: "4px 8px", fontSize: "10px", background: "none", border: "1px solid var(--line)" }}
                 onClick={handleCopyCommand}
               >
-                {isCopied ? "✓ Copied" : "Copy git push"}
+                {isCopied ? "✓ Copied" : "Copy push hook"}
               </button>
             </div>
 
@@ -203,7 +250,7 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
                 onClick={() => setActiveTab("backup")} 
                 style={{ border: "none", cursor: "pointer", background: activeTab === "backup" ? "var(--accent)" : "rgba(255,255,255,0.05)", color: activeTab === "backup" ? "#111" : "var(--muted)", padding: "4px 10px", fontSize: "11px", fontWeight: activeTab === "backup" ? 700 : 400 }}
               >
-                4. Backup
+                4. Volumes Backup
               </button>
             </div>
 
@@ -218,7 +265,94 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
         </aside>
       </section>
 
-      {/* 3. Interactive Dashboard Mockup Section */}
+      {/* 3. Vercel Inspiration: Framework Template Selector section */}
+      <section id="templates" className="panel" style={{ marginTop: "40px", background: "rgba(26,24,18,0.3)", padding: "32px", border: "1px solid var(--line)" }}>
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <h2 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "28px", textTransform: "uppercase", letterSpacing: -0.5, margin: 0 }}>
+            Develop with your favorite stacks
+          </h2>
+          <p className="muted" style={{ fontSize: "14px", marginTop: "6px" }}>
+            Cadsploy automatically inspects and configures your project structure using smart Nixpacks blueprints.
+          </p>
+        </div>
+
+        {/* Selector Buttons */}
+        <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginBottom: "32px", flexWrap: "wrap" }}>
+          {(Object.keys(frameworkBlueprints) as FrameworkKey[]).map((key) => (
+            <button
+              key={key}
+              onClick={() => setSelectedFramework(key)}
+              className="btn"
+              style={{
+                borderColor: selectedFramework === key ? "var(--accent)" : "var(--line)",
+                background: selectedFramework === key ? "rgba(215, 255, 66, 0.08)" : "var(--panel)",
+                fontWeight: selectedFramework === key ? 700 : 400
+              }}
+            >
+              <span style={{ marginRight: 8, color: "var(--accent)" }}>{frameworkBlueprints[key].icon}</span>
+              {frameworkBlueprints[key].name}
+            </button>
+          ))}
+        </div>
+
+        {/* Blueprint Details Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "28px" }}>
+          <div className="card" style={{ background: "#0a0a07", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #222", paddingBottom: "12px", marginBottom: "16px" }}>
+                <strong style={{ fontSize: "14px" }}>Nixpacks Blueprint: {frameworkBlueprints[selectedFramework].name}</strong>
+                <span style={{ fontSize: "10px", background: "var(--accent)", color: "#111", padding: "1px 6px" }}>detected</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "12px", fontSize: "12px" }}>
+                <div>
+                  <span className="muted" style={{ display: "block", fontSize: "10px", textTransform: "uppercase" }}>Auto-Detect Files</span>
+                  <code>{frameworkBlueprints[selectedFramework].detect}</code>
+                </div>
+                <div>
+                  <span className="muted" style={{ display: "block", fontSize: "10px", textTransform: "uppercase" }}>Install Command</span>
+                  <code>{frameworkBlueprints[selectedFramework].install}</code>
+                </div>
+                <div>
+                  <span className="muted" style={{ display: "block", fontSize: "10px", textTransform: "uppercase" }}>Build/Start Script</span>
+                  <code>{frameworkBlueprints[selectedFramework].build}</code>
+                </div>
+                <div>
+                  <span className="muted" style={{ display: "block", fontSize: "10px", textTransform: "uppercase" }}>Application Port</span>
+                  <code>{frameworkBlueprints[selectedFramework].port}</code>
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop: "24px", paddingTop: "14px", borderTop: "1px solid #222", fontSize: "11px", color: "var(--muted)" }}>
+              ℹ️ No Dockerfile required. Cadsploy compiles dependencies automatically.
+            </div>
+          </div>
+
+          {/* Blueprint Terminal Execution Visual */}
+          <div className="card" style={{ background: "#080806", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <strong style={{ fontSize: "11px", color: "var(--accent)", textTransform: "uppercase", display: "block", marginBottom: "14px" }}>
+                💻 Engine Execution Preview
+              </strong>
+              <pre style={{ fontSize: "11px", color: "#8dd39e", margin: 0, overflowX: "auto" }}>
+                {`$ ${frameworkBlueprints[selectedFramework].dockerCommand}
+[nixpacks] building image...
+[nixpacks] installing dependencies...
+[nixpacks] executing build steps...
+✓ Image compilation successful
+$ docker run -d \\
+  --name cadsploy-app-${selectedFramework} \\
+  -p :${frameworkBlueprints[selectedFramework].port} \\
+  cadsploy-app-${selectedFramework}:latest`}
+              </pre>
+            </div>
+            <a className="btn primary" style={{ width: "100%", marginTop: "24px" }} href={`${apiUrl}/auth/github`}>
+              Deploy This Stack
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Interactive Dashboard Mockup Section */}
       <section className="panel" style={{ marginTop: "40px", background: "linear-gradient(180deg, #181611 0%, #11100d 100%)", padding: "32px", border: "1px solid var(--line)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--line)", paddingBottom: "18px", marginBottom: "24px" }}>
           <div>
@@ -344,57 +478,63 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
         </div>
       </section>
 
-      {/* 4. Features Grid */}
-      <h2 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "28px", textTransform: "uppercase", letterSpacing: -1, margin: "64px 0 20px", textAlign: "center" }}>
-        Engineered for Developers
+      {/* 5. Railway Core Pillars: Develop, Deploy, Scale, Monitor */}
+      <h2 id="features" style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "28px", textTransform: "uppercase", letterSpacing: -1, margin: "64px 0 20px", textAlign: "center" }}>
+        Engineered for Complete Control
       </h2>
 
       <section className="grid" style={{ marginBottom: "64px", gap: "20px" }}>
         <div className="card" style={{ padding: "24px" }}>
-          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>📦 Docker-First Containerization</strong>
+          <span style={{ fontSize: "10px", background: "rgba(215,255,66,0.1)", color: "var(--accent)", padding: "2px 8px", textTransform: "uppercase", display: "inline-block", marginBottom: "12px" }}>DEVELOP</span>
+          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>Docker-First Sandbox</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Automatic tech stack detection via Nixpacks or native Dockerfile configurations. If your source code can become a container, Cadsploy can run it.
+            Automatic tech stack detection via Nixpacks or native Dockerfile configurations. If your source code can become a container, Cadsploy can build and run it.
           </p>
         </div>
 
         <div className="card" style={{ padding: "24px" }}>
-          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>⚡ Dynamic Resource Allocation</strong>
+          <span style={{ fontSize: "10px", background: "rgba(215,255,66,0.1)", color: "var(--accent)", padding: "2px 8px", textTransform: "uppercase", display: "inline-block", marginBottom: "12px" }}>DEPLOY</span>
+          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>Zero-Downtime Infrastructure</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Configure strict RAM constraints (e.g. `256m`, `512m`, `1g`) and maximum CPU core limits per project directly from your dashboard to protect your VPS.
+            Route traffic immediately through pre-configured wildcard subdomains or your own custom domains with automated Let's Encrypt SSL via Caddy Server.
           </p>
         </div>
 
         <div className="card" style={{ padding: "24px" }}>
-          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>💾 WSL Secure Volume Backups</strong>
+          <span style={{ fontSize: "10px", background: "rgba(215,255,66,0.1)", color: "var(--accent)", padding: "2px 8px", textTransform: "uppercase", display: "inline-block", marginBottom: "12px" }}>SCALE</span>
+          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>Dynamic Resource Caps</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Archive container mount folders into compressed `.tar.gz` packages asynchronously via WSL, featuring one-click downloads and instant restores.
+            Configure strict memory limits (e.g. `256m`, `512m`, `1g`, `2g`) and precise CPU core quotas per project directly from the dashboard to protect your host.
           </p>
         </div>
 
         <div className="card" style={{ padding: "24px" }}>
-          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>🔗 Auto-SSL Subdomains</strong>
+          <span style={{ fontSize: "10px", background: "rgba(215,255,66,0.1)", color: "var(--accent)", padding: "2px 8px", textTransform: "uppercase", display: "inline-block", marginBottom: "12px" }}>MONITOR</span>
+          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>Real-time Observability</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Zero-config wildcard SSL generation and routing via Let's Encrypt using Caddy Server. Instantly route your subdomains or custom domains.
+            Expose real-time container metrics, track live build outputs, toggle auto-refreshing log queues, and download complete container outputs as standard `.txt` files.
           </p>
         </div>
 
         <div className="card" style={{ padding: "24px" }}>
-          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>🛢️ One-Click Managed Databases</strong>
+          <span style={{ fontSize: "10px", background: "rgba(215,255,66,0.1)", color: "var(--accent)", padding: "2px 8px", textTransform: "uppercase", display: "inline-block", marginBottom: "12px" }}>STORE</span>
+          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>WSL Volume Backups</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Deploy isolated, dedicated PostgreSQL or Redis database containers instantly, complete with log tracking and asynchronous backup procedures.
+            Mount host directories directly into containers for storage persistence. Create compressed `.tar.gz` volume backups and restore data with one-click asynchrony.
           </p>
         </div>
 
         <div className="card" style={{ padding: "24px" }}>
-          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>📊 Real-time Monitoring & Logs</strong>
+          <span style={{ fontSize: "10px", background: "rgba(215,255,66,0.1)", color: "var(--accent)", padding: "2px 8px", textTransform: "uppercase", display: "inline-block", marginBottom: "12px" }}>PROVISION</span>
+          <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>One-Click Managed DBs</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Inspect memory and CPU stats via active polling widgets. View container outputs instantly and download full historical log files as `.txt`.
+            Deploy standalone PostgreSQL or Redis database services immediately on your VPS, fully isolated and configured with automatic database backup pipelines.
           </p>
         </div>
       </section>
 
-      {/* 5. Pricing Plans */}
-      <h2 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "28px", textTransform: "uppercase", letterSpacing: -1, margin: "64px 0 20px", textAlign: "center" }}>
+      {/* 6. Pricing Plans */}
+      <h2 id="pricing" style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "28px", textTransform: "uppercase", letterSpacing: -1, margin: "64px 0 20px", textAlign: "center" }}>
         Simple, Predictable Plans
       </h2>
       <p className="muted" style={{ fontSize: "14px", textAlign: "center", maxWidth: "680px", margin: "-10px auto 40px", lineHeight: 1.5 }}>
@@ -412,7 +552,7 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
               <span className="muted" style={{ fontSize: "12px" }}> / forever</span>
             </div>
             <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.4, marginBottom: "20px", borderBottom: "1px solid var(--line)", paddingBottom: "14px" }}>
-              Perfect for hosting personal portfolios, testing docker containers, and running hobby websites.
+              Perfect for hosting personal portfolios, testing docker containers, and running hobby projects.
             </p>
             <ul style={{ paddingLeft: "18px", fontSize: "12px", lineHeight: 2, color: "var(--ink)", margin: 0 }}>
               <li>1 Active Project Limit</li>
@@ -457,19 +597,32 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
         </div>
       </section>
 
-      {/* 6. Call to Action (CTA) */}
+      {/* 7. Call to Action (CTA) */}
       <section className="panel" style={{ textAlign: "center", padding: "48px 24px", background: "var(--accent)", color: "#111", border: "3px solid #000", boxShadow: "12px 12px 0 #000", marginBottom: "80px" }}>
         <h2 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "36px", textTransform: "uppercase", letterSpacing: -1, margin: "0 0 14px", color: "#111" }}>
-          Deploy Your Application in Seconds
+          Ready to Deploy?
         </h2>
         <p style={{ fontFamily: "Libre Baskerville, serif", fontSize: "18px", margin: "0 0 28px", color: "#333", maxWidth: "680px", marginLeft: "auto", marginRight: "auto" }}>
-          Connect your GitHub account and start shipping Docker containers on your own VPS server without monthly platform premium fees.
+          Start building with a free account. Import your GitHub repository, configure settings, and launch your application instantly.
         </p>
         <a className="btn" href={`${apiUrl}/auth/github`} style={{ background: "#111", color: "var(--accent)", border: "2px solid #111", padding: "16px 36px", fontSize: "16px", fontWeight: 700 }}>
-          Get Started with GitHub
+          Get Started for Free
         </a>
       </section>
       
+      {/* Vercel Inspiration: All systems normal & display theme Mockup Footer */}
+      <footer style={{ borderTop: "1px solid var(--line)", paddingTop: "24px", paddingBottom: "48px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", fontSize: "12px", color: "var(--muted)" }}>
+        <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+          <span>© 2026 Cadsploy PaaS. Self-hosted & Sovereign.</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "var(--ok)", animation: "pulse 1.5s infinite" }} />
+            <span style={{ color: "var(--ok)", fontWeight: 600 }}>All systems normal</span>
+          </div>
+        </div>
+      </footer>
+
       {/* Styles animation block */}
       <style jsx global>{`
         @keyframes pulse {
