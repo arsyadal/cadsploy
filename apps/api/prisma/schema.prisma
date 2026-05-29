@@ -90,6 +90,9 @@ model Project {
   status      ProjectStatus @default(active)
   memoryLimit      String?           @default("512m") @map("memory_limit")
   cpuLimit         Float?            @default(0.5) @map("cpu_limit")
+  healthCheckPath  String?            @map("health_check_path")
+  isHealthy        Boolean            @default(true) @map("is_healthy")
+  lastHealthCheckAt DateTime?         @map("last_health_check_at")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
@@ -189,6 +192,8 @@ model DatabaseService {
   dbPassword    String?        @map("db_password")
   port          Int
   hostPort      Int            @map("host_port")
+  backupInterval String        @default("none") @map("backup_interval")
+  nextBackupAt   DateTime?      @map("next_backup_at")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
@@ -226,6 +231,8 @@ model PersistentVolume {
   projectId     String   @map("project_id")
   name          String
   containerPath String   @map("container_path")
+  backupInterval String   @default("none") @map("backup_interval")
+  nextBackupAt   DateTime? @map("next_backup_at")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

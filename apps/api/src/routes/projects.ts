@@ -98,6 +98,7 @@ export async function projectRoutes(app: FastifyInstance) {
       appPort: z.coerce.number().int().min(1).max(65535).optional(),
       memoryLimit: z.string().min(1).optional(),
       cpuLimit: z.coerce.number().min(0.1).max(16).optional(),
+      healthCheckPath: z.string().max(255).nullable().optional(),
     }).parse(request.body);
 
     const project = await prisma.project.update({
@@ -729,5 +730,96 @@ export async function projectRoutes(app: FastifyInstance) {
     } catch {
       throw app.httpErrors.notFound("Backup file not found on disk");
     }
+  });
+
+  // Bulk Environment Variables Importer
+  app.post("/api/projects/:id/env/bulk", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({ id: z.string().uuid() }).parse(request.params);
+    const body = z.object({ envText: z.string() }).parse(request.body);
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const lines = body.envText.split(/\r?\n/);
+    const imported: Array<{ key: string; scope: string }> = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      const equalIndex = trimmed.indexOf("=");
+      if (equalIndex === -1) continue;
+
+      const rawKey = trimmed.slice(0, equalIndex).trim();
+      let rawVal = trimmed.slice(equalIndex + 1).trim();
+
+      // Basic key validation matching our schema regex
+      if (!/^[A-Z_][A-Z0-9_]*$/.test(rawKey)) continue;
+
+      // Strip optional quotes around value
+      if ((rawVal.startsWith('"') && rawVal.endsWith('"')) || (rawVal.startsWith("'") && rawVal.endsWith("'"))) {
+        rawVal = rawVal.slice(1, -1);
+      }
+
+      const env = await prisma.envVar.upsert({
+        where: { projectId_key: { projectId: project.id, key: rawKey } },
+        update: { valueEncrypted: encryptText(rawVal) },
+        create: { projectId: project.id, key: rawKey, valueEncrypted: encryptText(rawVal), scope: "both" },
+      });
+
+      imported.push({ key: env.key, scope: env.scope });
+    }
+
+    return { success: true, count: imported.length, imported };
+  });
+
+  // Database Backup Scheduling Endpoint
+  app.patch("/api/projects/:id/databases/:databaseId/backup-schedule", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({ id: z.string().uuid(), databaseId: z.string().uuid() }).parse(request.params);
+    const body = z.object({ backupInterval: z.enum(["none", "daily", "weekly"]) }).parse(request.body);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const db = await prisma.databaseService.findFirst({ where: { id: params.databaseId, projectId: project.id } });
+    if (!db) throw app.httpErrors.notFound("Database service not found");
+
+    const nextBackupAt = body.backupInterval === "none" ? null : new Date();
+
+    const updated = await prisma.databaseService.update({
+      where: { id: db.id },
+      data: {
+        backupInterval: body.backupInterval,
+        nextBackupAt
+      }
+    });
+
+    return { database: updated };
+  });
+
+  // Volume Backup Scheduling Endpoint
+  app.patch("/api/projects/:id/volumes/:volumeId/backup-schedule", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({ id: z.string().uuid(), volumeId: z.string().uuid() }).parse(request.params);
+    const body = z.object({ backupInterval: z.enum(["none", "daily", "weekly"]) }).parse(request.body);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const volume = await prisma.persistentVolume.findFirst({ where: { id: params.volumeId, projectId: project.id } });
+    if (!volume) throw app.httpErrors.notFound("Persistent volume not found");
+
+    const nextBackupAt = body.backupInterval === "none" ? null : new Date();
+
+    const updated = await prisma.persistentVolume.update({
+      where: { id: volume.id },
+      data: {
+        backupInterval: body.backupInterval,
+        nextBackupAt
+      }
+    });
+
+    return { volume: updated };
   });
 }

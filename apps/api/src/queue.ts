@@ -6,6 +6,7 @@ export type DeployJob = {
   databaseId?: string;
   backupId?: string;
   volumeBackupId?: string;
+  projectId?: string;
 };
 
 export function redisOptions(url: string): ConnectionOptions {

@@ -6,12 +6,14 @@ import { regenerateCaddyfile } from "./proxy.js";
 import { deployDatabase, deleteDatabase } from "./database.js";
 import { backupDatabase, restoreDatabase } from "./backup.js";
 import { backupVolume, restoreVolume } from "./volume-backup.js";
+import { runCommand } from "./process.js";
 
 type DeployJob = {
   deploymentId?: string;
   databaseId?: string;
   backupId?: string;
   volumeBackupId?: string;
+  projectId?: string;
 };
 
 function redisOptions(url: string): ConnectionOptions {
@@ -54,6 +56,12 @@ const worker = new Worker<DeployJob, void, string>(
     } else if (job.name === "restore-volume") {
       if (!job.data.volumeBackupId) throw new Error("Missing volumeBackupId for restore-volume job");
       await restoreVolume(job.data.volumeBackupId);
+    } else if (job.name === "restart-container") {
+      if (!job.data.projectId) throw new Error("Missing projectId for restart-container job");
+      const project = await prisma.project.findUnique({ where: { id: job.data.projectId } });
+      if (!project) throw new Error(`Project ${job.data.projectId} not found`);
+      const containerName = `cadsploy-${project.slug}`;
+      await runCommand("docker", ["restart", containerName], { timeoutMs: 30_000 }).catch(() => undefined);
     }
   },
   {

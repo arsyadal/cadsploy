@@ -616,10 +616,10 @@ $ docker run -d \\
           <span>© 2026 Cadsploy PaaS. Self-hosted & Sovereign.</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <a href="/status" style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}>
             <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "var(--ok)", animation: "pulse 1.5s infinite" }} />
             <span style={{ color: "var(--ok)", fontWeight: 600 }}>All systems normal</span>
-          </div>
+          </a>
         </div>
       </footer>
 
