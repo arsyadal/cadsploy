@@ -144,14 +144,14 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
       <section className="hero" style={{ paddingTop: "40px", paddingBottom: "60px", gap: "32px" }}>
         <div>
           <span style={{ fontSize: "11px", background: "rgba(215, 255, 66, 0.1)", color: "var(--accent)", border: "1px solid rgba(215, 255, 66, 0.3)", padding: "4px 12px", textTransform: "uppercase", letterSpacing: 1, display: "inline-block", marginBottom: "20px" }}>
-            🚀 The Self-Hosted Cloud Provider
+            ⚡ Absolute Server Sovereignty
           </span>
           <h1 style={{ marginBottom: "16px", fontSize: "clamp(48px, 8vw, 96px)" }}>
-            Ship software<br />
-            <span style={{ color: "var(--accent)", textShadow: "0 0 15px rgba(215, 255, 66, 0.25)" }}>peacefully.</span>
+            Own your server.<br />
+            <span style={{ color: "var(--accent)", textShadow: "0 0 15px rgba(215, 255, 66, 0.25)" }}>Deploy with freedom.</span>
           </h1>
           <p className="lede" style={{ marginBottom: "32px", fontSize: "20px", color: "var(--muted)" }}>
-            Vercel simplicity meets Railway flexibility, running entirely on your own server. Deploy Dockerized apps, microservices, databases, and cron workers without premium platform markups.
+            A developer-first, sovereign deployment platform that turns any VPS into a high-performance control room. Build, deploy, scale, and secure your applications on your own terms without platform premium markups.
           </p>
           <div className="actions" style={{ marginBottom: "40px" }}>
             <a className="btn primary" href={`${apiUrl}/auth/github`} style={{ padding: "14px 28px", fontSize: "15px" }}>
