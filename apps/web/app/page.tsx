@@ -104,7 +104,7 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
             containerized.
           </h1>
           <p className="lede" style={{ marginBottom: "28px", fontSize: "20px", color: "var(--muted)" }}>
-            Ruang kendali deployment minimalis dan brutalist berbasis Docker untuk VPS pribadi Anda. Impor repositori GitHub, bangun secara otomatis, jalankan container dengan batas kapasitas, dan kelola database beserta pencadangan dalam satu platform terpadu.
+            A minimalist, brutalist Docker deployment control room for your own VPS. Import GitHub repositories, build automatically, configure custom memory and CPU limits, and manage databases with volume backups—all inside a single self-hosted platform.
           </p>
           <div className="actions" style={{ marginBottom: "40px" }}>
             <a className="btn primary" href={`${apiUrl}/auth/github`} style={{ padding: "14px 28px", fontSize: "15px" }}>
@@ -226,7 +226,7 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
               Live Control Room Mockup
             </h2>
             <p className="muted" style={{ fontSize: "12px", margin: "4px 0 0" }}>
-              Demonstrasi visual dari tampilan dashboard pengelolaan proyek Cadsploy.
+              Visual demonstration of the active Cadsploy dashboard control panel.
             </p>
           </div>
           <span className="status running" style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
@@ -242,7 +242,7 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "16px" }}>cadsploy-production-app</h3>
-                  <span className="muted" style={{ fontSize: "11px" }}>Branch: <code>main</code> &bull; Commited by <strong>arsyadal</strong></span>
+                  <span className="muted" style={{ fontSize: "11px" }}>Branch: <code>main</code> &bull; Committed by <strong>arsyadal</strong></span>
                 </div>
                 <div style={{ display: "flex", gap: "6px" }}>
                   <button className="btn primary" style={{ padding: "4px 10px", fontSize: "11px", minHeight: "auto" }}>Deploy</button>
@@ -353,42 +353,42 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
         <div className="card" style={{ padding: "24px" }}>
           <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>📦 Docker-First Containerization</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Deteksi otomatis tumpukan teknologi menggunakan Nixpacks atau berkas Dockerfile bawaan. Jika stack Anda bisa di-container-kan, Cadsploy bisa menjalankannya.
+            Automatic tech stack detection via Nixpacks or native Dockerfile configurations. If your source code can become a container, Cadsploy can run it.
           </p>
         </div>
 
         <div className="card" style={{ padding: "24px" }}>
           <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>⚡ Dynamic Resource Allocation</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Tetapkan batasan alokasi RAM (misalnya `256m`, `512m`) dan kuota CPU maksimum per kontainer langsung lewat UI dasbor untuk mengontrol stabilitas server VPS.
+            Configure strict RAM constraints (e.g. `256m`, `512m`, `1g`) and maximum CPU core limits per project directly from your dashboard to protect your VPS.
           </p>
         </div>
 
         <div className="card" style={{ padding: "24px" }}>
           <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>💾 WSL Secure Volume Backups</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Cadangkan direktori volume kontainer menjadi arsip terkompresi `.tar.gz` asinkron secara aman melalui WSL, lengkap dengan fitur restore sekali klik.
+            Archive container mount folders into compressed `.tar.gz` packages asynchronously via WSL, featuring one-click downloads and instant restores.
           </p>
         </div>
 
         <div className="card" style={{ padding: "24px" }}>
           <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>🔗 Auto-SSL Subdomains</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Registrasi wildcard SSL gratis dan otomatis via Let's Encrypt menggunakan Caddy Server. Hubungkan subdomain gratis atau custom domain Anda dengan aman.
+            Zero-config wildcard SSL generation and routing via Let's Encrypt using Caddy Server. Instantly route your subdomains or custom domains.
           </p>
         </div>
 
         <div className="card" style={{ padding: "24px" }}>
           <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>🛢️ One-Click Managed Databases</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Deploy database PostgreSQL atau Redis terisolasi secara instan, lengkap dengan log aktivitas dan opsi pencadangan database asinkron.
+            Deploy isolated, dedicated PostgreSQL or Redis database containers instantly, complete with log tracking and asynchronous backup procedures.
           </p>
         </div>
 
         <div className="card" style={{ padding: "24px" }}>
           <strong style={{ fontSize: "15px", display: "block", marginBottom: "8px" }}>📊 Real-time Monitoring & Logs</strong>
           <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.4 }}>
-            Tinjau konsumsi memori/CPU server lewat panel monitoring interaktif. Dapatkan log lengkap container dengan opsi download log format `.txt`.
+            Inspect memory and CPU stats via active polling widgets. View container outputs instantly and download full historical log files as `.txt`.
           </p>
         </div>
       </section>
@@ -398,7 +398,7 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
         Simple, Predictable Plans
       </h2>
       <p className="muted" style={{ fontSize: "14px", textAlign: "center", maxWidth: "680px", margin: "-10px auto 40px", lineHeight: 1.5 }}>
-        Pilih paket yang sesuai dengan kebutuhan pengembangan Anda. Penagihan dan sistem pembayaran (Billing) saat ini ditandai sebagai di luar cakupan MVP (Out of Scope) di dokumen prd.md, sehingga paket ini bersifat statis/opsional untuk rencana masa depan.
+        Choose the deployment scale that fits your workflow. Note that payment integrations (Billing) are explicitly marked as Out of Scope in the prd.md specification, making these plans illustrative of future capabilities.
       </p>
 
       <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "28px", marginBottom: "64px", maxWidth: "860px", marginLeft: "auto", marginRight: "auto" }}>
@@ -409,18 +409,18 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
             <h3 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "24px", margin: "10px 0" }}>Free Tier</h3>
             <div style={{ margin: "14px 0 20px" }}>
               <span style={{ fontSize: "36px", fontFamily: "Archivo Black, sans-serif", color: "var(--accent)" }}>$0</span>
-              <span className="muted" style={{ fontSize: "12px" }}> / selamanya</span>
+              <span className="muted" style={{ fontSize: "12px" }}> / forever</span>
             </div>
             <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.4, marginBottom: "20px", borderBottom: "1px solid var(--line)", paddingBottom: "14px" }}>
-              Sangat cocok untuk portofolio pribadi, uji coba aplikasi, dan proyek skala hobi.
+              Perfect for hosting personal portfolios, testing docker containers, and running hobby websites.
             </p>
             <ul style={{ paddingLeft: "18px", fontSize: "12px", lineHeight: 2, color: "var(--ink)", margin: 0 }}>
-              <li>Maksimal 1 Proyek Aktif</li>
-              <li>RAM Maksimum <code>256 MB</code> per kontainer</li>
-              <li>CPU Maksimum <code>0.2 Cores</code></li>
-              <li>Subdomain Otomatis (<code>*.cadsploy.id</code>)</li>
-              <li>Database Hobi (SQLite via Persistent Volume)</li>
-              <li>Hibernasi otomatis setelah 15 menit sepi</li>
+              <li>1 Active Project Limit</li>
+              <li>Maximum <code>256 MB</code> Container RAM</li>
+              <li>Maximum <code>0.2 CPU Cores</code> Allocation</li>
+              <li>Free Subdomain Routing (<code>*.cadsploy.id</code>)</li>
+              <li>SQLite Local Database (via Persistent Volume)</li>
+              <li>Auto-idles container after 15 minutes of inactivity</li>
             </ul>
           </div>
           <a className="btn" href={`${apiUrl}/auth/github`} style={{ marginTop: "32px", width: "100%" }}>
@@ -436,19 +436,19 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
             <h3 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "24px", margin: "10px 0" }}>Pro Cloud</h3>
             <div style={{ margin: "14px 0 20px" }}>
               <span style={{ fontSize: "36px", fontFamily: "Archivo Black, sans-serif", color: "var(--accent)" }}>$6</span>
-              <span className="muted" style={{ fontSize: "12px" }}> / bulan</span>
+              <span className="muted" style={{ fontSize: "12px" }}> / month</span>
             </div>
             <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.4, marginBottom: "20px", borderBottom: "1px solid var(--line)", paddingBottom: "14px" }}>
-              Dirancang untuk aplikasi produksi SaaS, API bisnis, dan basis data dedicated berkinerja tinggi.
+              Designed for running production SaaS APIs, client databases, and active production workloads.
             </p>
             <ul style={{ paddingLeft: "18px", fontSize: "12px", lineHeight: 2, color: "var(--ink)", margin: 0 }}>
-              <li><strong>Hingga 10 Proyek Aktif</strong></li>
-              <li>RAM Maksimum <code>2 GB</code> per kontainer</li>
-              <li>CPU Maksimum <code>2.0 Cores</code> (prioritas penuh)</li>
-              <li>Mendukung <strong>Custom Domain</strong> Anda sendiri</li>
-              <li><strong>Dedicated Database</strong> (PostgreSQL & Redis)</li>
-              <li>Selalu Aktif 24/7 (Tanpa Hibernasi)</li>
-              <li>Pencadangan volume (.tar.gz) otomatis harian</li>
+              <li><strong>Up to 10 Active Projects</strong></li>
+              <li>Maximum <code>2 GB</code> RAM per container</li>
+              <li>Maximum <code>2.0 CPU Cores</code> (full scheduling priority)</li>
+              <li>Connect Your Custom Domains</li>
+              <li><strong>Dedicated Database</strong> Containers (Postgres, Redis)</li>
+              <li>Always-On 24/7 (No Auto-idling)</li>
+              <li>Daily automated volume backups (.tar.gz)</li>
             </ul>
           </div>
           <a className="btn primary" href={`${apiUrl}/auth/github`} style={{ marginTop: "32px", width: "100%" }}>
@@ -463,7 +463,7 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
           Deploy Your Application in Seconds
         </h2>
         <p style={{ fontFamily: "Libre Baskerville, serif", fontSize: "18px", margin: "0 0 28px", color: "#333", maxWidth: "680px", marginLeft: "auto", marginRight: "auto" }}>
-          Hubungkan akun GitHub Anda dan rasakan kemudahan mengelola kontainer Docker di server VPS pribadi secara aman tanpa biaya platform bulanan.
+          Connect your GitHub account and start shipping Docker containers on your own VPS server without monthly platform premium fees.
         </p>
         <a className="btn" href={`${apiUrl}/auth/github`} style={{ background: "#111", color: "var(--accent)", border: "2px solid #111", padding: "16px 36px", fontSize: "16px", fontWeight: 700 }}>
           Get Started with GitHub
