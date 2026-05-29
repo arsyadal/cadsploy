@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 function toWslPath(windowsPath: string): string {
   let p = windowsPath.replace(/\\/g, "/");
   const match = p.match(/^([a-zA-Z]):/);
-  if (match) {
+  if (match && match[1]) {
     const drive = match[1].toLowerCase();
     p = p.replace(/^[a-zA-Z]:/, `/mnt/${drive}`);
   }

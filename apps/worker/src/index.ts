@@ -5,10 +5,13 @@ import { deploy } from "./deploy.js";
 import { regenerateCaddyfile } from "./proxy.js";
 import { deployDatabase, deleteDatabase } from "./database.js";
 import { backupDatabase, restoreDatabase } from "./backup.js";
+import { backupVolume, restoreVolume } from "./volume-backup.js";
 
 type DeployJob = {
   deploymentId?: string;
   databaseId?: string;
+  backupId?: string;
+  volumeBackupId?: string;
 };
 
 function redisOptions(url: string): ConnectionOptions {
@@ -45,6 +48,12 @@ const worker = new Worker<DeployJob, void, string>(
     } else if (job.name === "restore-database") {
       if (!job.data.backupId) throw new Error("Missing backupId for restore-database job");
       await restoreDatabase(job.data.backupId);
+    } else if (job.name === "backup-volume") {
+      if (!job.data.volumeBackupId) throw new Error("Missing volumeBackupId for backup-volume job");
+      await backupVolume(job.data.volumeBackupId);
+    } else if (job.name === "restore-volume") {
+      if (!job.data.volumeBackupId) throw new Error("Missing volumeBackupId for restore-volume job");
+      await restoreVolume(job.data.volumeBackupId);
     }
   },
   {

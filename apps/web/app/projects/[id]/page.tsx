@@ -50,6 +50,9 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
   const [newVolumePath, setNewVolumePath] = useState("");
   const [stats, setStats] = useState<Array<{ name: string; cpu: string; memoryUsage: string; memoryPerc: string }>>([]);
   const [autoRefreshLogs, setAutoRefreshLogs] = useState(true);
+  const [memoryLimit, setMemoryLimit] = useState("512m");
+  const [cpuLimit, setCpuLimit] = useState(0.5);
+  const [volumeBackups, setVolumeBackups] = useState<Record<string, Array<{ id: string; fileName: string; fileSize: number | null; status: string; errorMessage: string | null; createdAt: string; completedAt: string | null }>>>({});
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -59,8 +62,10 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
   async function load(id = projectId) {
     if (!id) return;
     try {
-      const payload = await apiFetch<ProjectPayload>(`/api/projects/${id}`);
+      const payload = await apiFetch<ProjectPayload & { project: { memoryLimit?: string; cpuLimit?: number } }>(`/api/projects/${id}`);
       setProject(payload.project);
+      if (payload.project.memoryLimit) setMemoryLimit(payload.project.memoryLimit);
+      if (payload.project.cpuLimit) setCpuLimit(payload.project.cpuLimit);
       setDeployments(payload.deployments);
       const latest = payload.deployments[0];
       if (latest) {
@@ -84,6 +89,14 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
 
       const volumesPayload = await apiFetch<{ volumes: typeof volumes }>(`/api/projects/${id}/volumes`);
       setVolumes(volumesPayload.volumes);
+
+      for (const vol of volumesPayload.volumes) {
+        const volBackupsPayload = await apiFetch<{ backups: any[] }>(`/api/projects/${id}/volumes/${vol.id}/backups`);
+        setVolumeBackups((prev) => ({
+          ...prev,
+          [vol.id]: volBackupsPayload.backups
+        }));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load project");
     }
@@ -141,6 +154,56 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete volume");
+    }
+  }
+
+  async function createVolumeBackup(volId: string) {
+    if (!projectId) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/volumes/${volId}/backups`, { method: "POST" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create volume backup");
+    }
+  }
+
+  async function restoreVolumeBackup(volId: string, backupId: string) {
+    if (!projectId || !confirm("Restore this volume backup? Existing volume files will be completely clean-replaced. This operation cannot be undone.")) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/volumes/${volId}/backups/${backupId}/restore`, { method: "POST" });
+      alert("Volume restore job has been scheduled in background.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to restore volume backup");
+    }
+  }
+
+  async function deleteVolumeBackup(volId: string, backupId: string) {
+    if (!projectId || !confirm("Permanently delete this volume backup file?")) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/volumes/${volId}/backups/${backupId}`, { method: "DELETE" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete volume backup");
+    }
+  }
+
+  async function saveLimits(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!projectId) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ memoryLimit, cpuLimit })
+      });
+      alert("Resource limits updated! Please redeploy the application to apply the new limits.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save resource limits");
     }
   }
 
@@ -400,6 +463,34 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 <button className="btn primary">Save env</button>
               </form>
               <p className="muted">{env.map((item) => item.key).join(", ") || "No env vars"}</p>
+
+              <div style={{ marginTop: 24, borderTop: "1px solid #222", paddingTop: 16 }}>
+                <h2>Resource Limits</h2>
+                <form className="form" onSubmit={saveLimits}>
+                  <div className="field">
+                    <label>RAM Limit</label>
+                    <select value={memoryLimit} onChange={(event) => setMemoryLimit(event.target.value)}>
+                      <option value="128m">128 MB (Lite)</option>
+                      <option value="256m">256 MB (Small)</option>
+                      <option value="512m">512 MB (Default)</option>
+                      <option value="1g">1 GB (Medium)</option>
+                      <option value="2g">2 GB (Large)</option>
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>CPU Allocation (Cores)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      max="8"
+                      value={cpuLimit}
+                      onChange={(event) => setCpuLimit(Number(event.target.value))}
+                    />
+                  </div>
+                  <button className="btn primary">Update Limits</button>
+                </form>
+              </div>
             </section>
           </div>
 
@@ -547,10 +638,10 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                               Backup Now
                             </button>
                           </div>
-                          {backups[item.id]?.length > 0 ? (
+                          {(backups[item.id] || []).length > 0 ? (
                             <table style={{ width: "100%", fontSize: 11, marginTop: 4 }}>
                               <tbody>
-                                {backups[item.id].map((b) => (
+                                {(backups[item.id] || []).map((b) => (
                                   <tr key={b.id} style={{ borderBottom: "1px solid #222" }}>
                                     <td style={{ padding: "4px 0", color: "#ccc" }}>
                                       {new Date(b.createdAt).toLocaleString()}
@@ -657,11 +748,64 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 <tbody>
                   {volumes.map((item) => (
                     <tr key={item.id}>
-                      <td>
-                        <strong>{item.name}</strong>
-                      </td>
-                      <td>
-                        <code>{item.containerPath}</code>
+                      <td colSpan={2}>
+                        <strong>{item.name}</strong> <span className="muted">({item.containerPath})</span>
+                        <div style={{ marginTop: 8, borderTop: "1px solid #222", paddingTop: 6 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                            <strong style={{ fontSize: 10, color: "#666" }}>BACKUPS (.TAR.GZ)</strong>
+                            <button
+                              className="btn primary"
+                              style={{ padding: "2px 6px", fontSize: 9 }}
+                              onClick={() => createVolumeBackup(item.id)}
+                            >
+                              Backup Volume
+                            </button>
+                          </div>
+                          {(volumeBackups[item.id] || []).length > 0 ? (
+                            <table style={{ width: "100%", fontSize: 10 }}>
+                              <tbody>
+                                {(volumeBackups[item.id] || []).map((vb) => (
+                                  <tr key={vb.id} style={{ borderBottom: "1px solid #111" }}>
+                                    <td style={{ color: "#888", padding: "3px 0" }}>{new Date(vb.createdAt).toLocaleString()}</td>
+                                    <td style={{ padding: "3px 0" }}><code>{formatSize(vb.fileSize)}</code></td>
+                                    <td style={{ padding: "3px 0" }}><span className={`status ${vb.status}`} style={{ fontSize: 8, padding: "0 3px" }}>{vb.status}</span></td>
+                                    <td style={{ textAlign: "right", padding: "3px 0" }}>
+                                      {vb.status === "completed" && (
+                                        <>
+                                          <a
+                                            href={`${apiUrl}/api/projects/${projectId}/volumes/${item.id}/backups/${vb.id}/download`}
+                                            className="btn"
+                                            style={{ padding: "1px 4px", fontSize: 8, display: "inline-block", marginRight: 3 }}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                          >
+                                            Download
+                                          </a>
+                                          <button
+                                            className="btn"
+                                            style={{ padding: "1px 4px", fontSize: 8, marginRight: 3 }}
+                                            onClick={() => restoreVolumeBackup(item.id, vb.id)}
+                                          >
+                                            Restore
+                                          </button>
+                                        </>
+                                      )}
+                                      <button
+                                        className="btn danger"
+                                        style={{ padding: "1px 4px", fontSize: 8 }}
+                                        onClick={() => deleteVolumeBackup(item.id, vb.id)}
+                                      >
+                                        Delete
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <div style={{ fontSize: 9, color: "#444", fontStyle: "italic" }}>No volume backups.</div>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <button className="btn danger" onClick={() => removeVolume(item.id)}>
@@ -699,6 +843,15 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                   />
                   Auto-refresh (4s)
                 </label>
+                <a
+                  href={`${apiUrl}/api/projects/${projectId}/runtime-logs/download`}
+                  className="btn"
+                  style={{ display: "inline-block" }}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Download Logs (.txt)
+                </a>
                 <button className="btn" onClick={refreshRuntimeLogs}>Refresh</button>
               </div>
             </div>

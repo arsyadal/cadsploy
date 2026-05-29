@@ -88,6 +88,8 @@ model Project {
   buildMethod BuildMethod   @map("build_method")
   appPort     Int           @map("app_port")
   status      ProjectStatus @default(active)
+  memoryLimit      String?           @default("512m") @map("memory_limit")
+  cpuLimit         Float?            @default(0.5) @map("cpu_limit")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
@@ -227,10 +229,33 @@ model PersistentVolume {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  backups VolumeBackup[]
 
   @@unique([projectId, name])
   @@index([projectId])
   @@map("persistent_volumes")
+}
+
+enum VolumeBackupStatus {
+  pending
+  completed
+  failed
+}
+
+model VolumeBackup {
+  id                 String             @id @default(uuid())
+  persistentVolumeId String             @map("persistent_volume_id")
+  fileName           String             @map("file_name")
+  fileSize           Int?               @map("file_size")
+  status             VolumeBackupStatus @default(pending)
+  errorMessage       String?            @map("error_message")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  completedAt        DateTime?          @map("completed_at")
+
+  persistentVolume PersistentVolume @relation(fields: [persistentVolumeId], references: [id], onDelete: Cascade)
+
+  @@index([persistentVolumeId])
+  @@map("volume_backups")
 }
 

@@ -110,4 +110,29 @@ export async function runtimeRoutes(app: FastifyInstance) {
       return { stats: [] };
     }
   });
+
+  app.get("/api/projects/:id/runtime-logs/download", async (request, reply) => {
+    const user = await requireUser(request);
+    const params = z.object({ id: z.string().uuid() }).parse(request.params);
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const deployment = await prisma.deployment.findFirst({
+      where: { projectId: project.id, status: "running", containerName: { not: null } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!deployment?.containerName) throw app.httpErrors.notFound("No active running container found for this project");
+
+    try {
+      const { stdout, stderr } = await runDockerCommand(["logs", deployment.containerName], 20_000);
+      const fullLog = `${stdout}${stderr}`;
+      void reply
+        .header("Content-Disposition", `attachment; filename="${project.slug}-runtime-logs.txt"`)
+        .header("Content-Type", "text/plain")
+        .send(fullLog);
+    } catch (error) {
+      request.log.warn({ error }, "failed to read runtime logs for download");
+      throw app.httpErrors.internalServerError("Unable to download runtime logs");
+    }
+  });
 }

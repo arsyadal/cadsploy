@@ -23,6 +23,8 @@ function publicProject(project: any) {
     buildMethod: project.buildMethod,
     appPort: project.appPort,
     status: project.status,
+    memoryLimit: project.memoryLimit,
+    cpuLimit: project.cpuLimit,
     url: config.baseDomain === "localhost"
       ? `http://${project.slug}.${config.baseDomain}:8080`
       : `https://${project.slug}.${config.baseDomain}`,
@@ -94,6 +96,8 @@ export async function projectRoutes(app: FastifyInstance) {
       branch: z.string().min(1).max(120).optional(),
       buildMethod: z.nativeEnum(BuildMethod).optional(),
       appPort: z.coerce.number().int().min(1).max(65535).optional(),
+      memoryLimit: z.string().min(1).optional(),
+      cpuLimit: z.coerce.number().min(0.1).max(16).optional(),
     }).parse(request.body);
 
     const project = await prisma.project.update({
@@ -578,5 +582,152 @@ export async function projectRoutes(app: FastifyInstance) {
     });
 
     return { ok: true };
+  });
+
+  app.get("/api/projects/:id/volumes/:volumeId/backups", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      volumeId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const volume = await prisma.persistentVolume.findFirst({
+      where: { id: params.volumeId, projectId: project.id }
+    });
+    if (!volume) throw app.httpErrors.notFound("Volume not found");
+
+    const backups = await prisma.volumeBackup.findMany({
+      where: { persistentVolumeId: volume.id },
+      orderBy: { createdAt: "desc" }
+    });
+    return { backups };
+  });
+
+  app.post("/api/projects/:id/volumes/:volumeId/backups", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      volumeId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const volume = await prisma.persistentVolume.findFirst({
+      where: { id: params.volumeId, projectId: project.id }
+    });
+    if (!volume) throw app.httpErrors.notFound("Volume not found");
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const fileName = `${project.slug}-${volume.name}-backup-${timestamp}.tar.gz`;
+
+    const backup = await prisma.volumeBackup.create({
+      data: {
+        persistentVolumeId: volume.id,
+        fileName,
+        status: "pending"
+      }
+    });
+
+    await deployQueue.add("backup-volume", { volumeBackupId: backup.id });
+    return { backup };
+  });
+
+  app.post("/api/projects/:id/volumes/:volumeId/backups/:backupId/restore", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      volumeId: z.string().uuid(),
+      backupId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const volume = await prisma.persistentVolume.findFirst({
+      where: { id: params.volumeId, projectId: project.id }
+    });
+    if (!volume) throw app.httpErrors.notFound("Volume not found");
+
+    const backup = await prisma.volumeBackup.findFirst({
+      where: { id: params.backupId, persistentVolumeId: volume.id }
+    });
+    if (!backup) throw app.httpErrors.notFound("Backup not found");
+
+    if (backup.status !== "completed") {
+      throw app.httpErrors.badRequest("Cannot restore a backup that is not completed");
+    }
+
+    await deployQueue.add("restore-volume", { volumeBackupId: backup.id });
+    return { ok: true };
+  });
+
+  app.delete("/api/projects/:id/volumes/:volumeId/backups/:backupId", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      volumeId: z.string().uuid(),
+      backupId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const volume = await prisma.persistentVolume.findFirst({
+      where: { id: params.volumeId, projectId: project.id }
+    });
+    if (!volume) throw app.httpErrors.notFound("Volume not found");
+
+    const backup = await prisma.volumeBackup.findFirst({
+      where: { id: params.backupId, persistentVolumeId: volume.id }
+    });
+    if (!backup) throw app.httpErrors.notFound("Backup not found");
+
+    const filePath = path.resolve(config.backupsDir, `${backup.id}.tar.gz`);
+    await fs.unlink(filePath).catch(() => undefined);
+
+    await prisma.volumeBackup.delete({
+      where: { id: backup.id }
+    });
+
+    return { ok: true };
+  });
+
+  app.get("/api/projects/:id/volumes/:volumeId/backups/:backupId/download", async (request, reply) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      volumeId: z.string().uuid(),
+      backupId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const volume = await prisma.persistentVolume.findFirst({
+      where: { id: params.volumeId, projectId: project.id }
+    });
+    if (!volume) throw app.httpErrors.notFound("Volume not found");
+
+    const backup = await prisma.volumeBackup.findFirst({
+      where: { id: params.backupId, persistentVolumeId: volume.id }
+    });
+    if (!backup) throw app.httpErrors.notFound("Backup not found");
+
+    const filePath = path.resolve(config.backupsDir, `${backup.id}.tar.gz`);
+
+    try {
+      await fs.access(filePath);
+      const fileStream = await fs.readFile(filePath);
+      void reply
+        .header("Content-Disposition", `attachment; filename="${backup.fileName}"`)
+        .header("Content-Type", "application/gzip")
+        .send(fileStream);
+    } catch {
+      throw app.httpErrors.notFound("Backup file not found on disk");
+    }
   });
 }

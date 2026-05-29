@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 function toWslPath(windowsPath: string): string {
   let p = windowsPath.replace(/\\/g, "/");
   const match = p.match(/^([a-zA-Z]):/);
-  if (match) {
+  if (match && match[1]) {
     const drive = match[1].toLowerCase();
     p = p.replace(/^[a-zA-Z]:/, `/mnt/${drive}`);
   }
@@ -144,9 +144,9 @@ export async function deploy(deploymentId: string) {
         "--restart",
         "unless-stopped",
         "--memory",
-        config.defaultMemory,
+        project.memoryLimit || config.defaultMemory,
         "--cpus",
-        config.defaultCpus,
+        String(project.cpuLimit || config.defaultCpus),
         "--security-opt",
         "no-new-privileges",
         "-e",
