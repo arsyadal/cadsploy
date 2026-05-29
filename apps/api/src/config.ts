@@ -25,6 +25,7 @@ export const config = {
   githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
   githubCallbackUrl: required("GITHUB_CALLBACK_URL", "http://localhost:4000/auth/github/callback"),
   backupsDir: resolve(repoRoot, "backups"),
+  volumesDir: resolve(repoRoot, "volumes"),
 };
 
 export const isProduction = config.nodeEnv === "production";

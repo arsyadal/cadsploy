@@ -45,6 +45,11 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
   const [newDbType, setNewDbType] = useState<"postgres" | "redis">("postgres");
   const [revealPasswords, setRevealPasswords] = useState<Record<string, boolean>>({});
   const [backups, setBackups] = useState<Record<string, Array<{ id: string; fileName: string; fileSize: number | null; status: string; errorMessage: string | null; createdAt: string; completedAt: string | null }>>>({});
+  const [volumes, setVolumes] = useState<Array<{ id: string; name: string; containerPath: string }>>([]);
+  const [newVolumeName, setNewVolumeName] = useState("");
+  const [newVolumePath, setNewVolumePath] = useState("");
+  const [stats, setStats] = useState<Array<{ name: string; cpu: string; memoryUsage: string; memoryPerc: string }>>([]);
+  const [autoRefreshLogs, setAutoRefreshLogs] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -76,8 +81,66 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
           [db.id]: backupsPayload.backups
         }));
       }
+
+      const volumesPayload = await apiFetch<{ volumes: typeof volumes }>(`/api/projects/${id}/volumes`);
+      setVolumes(volumesPayload.volumes);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load project");
+    }
+  }
+
+  async function loadStats() {
+    if (!projectId) return;
+    try {
+      const payload = await apiFetch<{ stats: typeof stats }>(`/api/projects/${projectId}/stats`);
+      setStats(payload.stats);
+    } catch {
+      // Silently ignore stats loading errors
+    }
+  }
+
+  useEffect(() => {
+    if (!projectId) return;
+    void loadStats();
+    const interval = setInterval(() => {
+      void loadStats();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId || !autoRefreshLogs) return;
+    const interval = setInterval(() => {
+      void refreshRuntimeLogs();
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [projectId, autoRefreshLogs]);
+
+  async function addVolume(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!projectId || !newVolumeName.trim() || !newVolumePath.trim()) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/volumes`, {
+        method: "POST",
+        body: JSON.stringify({ name: newVolumeName.trim().toLowerCase(), containerPath: newVolumePath.trim() })
+      });
+      setNewVolumeName("");
+      setNewVolumePath("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add volume");
+    }
+  }
+
+  async function removeVolume(volumeId: string) {
+    if (!projectId || !confirm("Remove this persistent volume? Host directory will be cleaned up, but the app container needs to be redeployed to apply the change.")) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/volumes/${volumeId}`, { method: "DELETE" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete volume");
     }
   }
 
@@ -279,6 +342,40 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
           </div>
 
           {error ? <p className="error">{error}</p> : null}
+
+          {stats.length > 0 && (
+            <section className="panel" style={{ marginTop: 18, border: "1px solid #111" }}>
+              <div style={{ display: "flex", gap: 12, overflowX: "auto", padding: "4px 0" }}>
+                {stats.map((s) => (
+                  <div key={s.name} style={{ flex: "1 1 200px", minWidth: 200, padding: 12, backgroundColor: "#0b0b0b", border: "1px solid #222", borderRadius: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <strong style={{ fontSize: 12, color: "var(--accent)" }}>{s.name}</strong>
+                      <span className="status running" style={{ fontSize: 9, padding: "1px 6px" }}>live</span>
+                    </div>
+                    <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                        <span>CPU Usage:</span>
+                        <code>{s.cpu}</code>
+                      </div>
+                      <div style={{ height: 4, width: "100%", backgroundColor: "#222", borderRadius: 2, marginBottom: 8, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: s.cpu, backgroundColor: "var(--accent)", transition: "width 0.4s ease" }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                        <span>Memory Usage:</span>
+                        <code>{s.memoryPerc}</code>
+                      </div>
+                      <div style={{ height: 4, width: "100%", backgroundColor: "#222", borderRadius: 2, marginBottom: 4, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: s.memoryPerc, backgroundColor: "var(--primary)", transition: "width 0.4s ease" }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: "#666", textAlign: "right" }}>
+                        {s.memoryUsage}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <div className="two-col">
             <section className="panel">
@@ -523,13 +620,88 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
             </section>
           </div>
 
+          <div className="two-col" style={{ marginTop: 18 }}>
+            <section className="panel">
+              <h2>Persistent Volumes</h2>
+              <form className="form" onSubmit={addVolume}>
+                <div className="field">
+                  <label>Volume Name</label>
+                  <input
+                    value={newVolumeName}
+                    onChange={(event) => setNewVolumeName(event.target.value)}
+                    placeholder="uploads"
+                  />
+                </div>
+                <div className="field">
+                  <label>Mount Path in Container</label>
+                  <input
+                    value={newVolumePath}
+                    onChange={(event) => setNewVolumePath(event.target.value)}
+                    placeholder="/app/data"
+                  />
+                </div>
+                <button className="btn primary">Add Volume</button>
+              </form>
+            </section>
+
+            <section className="panel">
+              <h2>Active Volume Mounts</h2>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Volume Name</th>
+                    <th>Container Mount Path</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {volumes.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <strong>{item.name}</strong>
+                      </td>
+                      <td>
+                        <code>{item.containerPath}</code>
+                      </td>
+                      <td>
+                        <button className="btn danger" onClick={() => removeVolume(item.id)}>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {volumes.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="muted" style={{ textAlign: "center", fontStyle: "italic" }}>
+                        No persistent volumes configured.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </section>
+          </div>
+
           <section className="panel" style={{ marginTop: 18 }}>
             <h2>Build logs</h2>
             <pre className="log">{logs || "No build logs yet."}</pre>
           </section>
 
           <section className="panel" style={{ marginTop: 18 }}>
-            <div className="header-row"><h2>Runtime logs</h2><button className="btn" onClick={refreshRuntimeLogs}>Load runtime logs</button></div>
+            <div className="header-row">
+              <h2>Runtime logs</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: "#ccc" }}>
+                  <input
+                    type="checkbox"
+                    checked={autoRefreshLogs}
+                    onChange={(event) => setAutoRefreshLogs(event.target.checked)}
+                  />
+                  Auto-refresh (4s)
+                </label>
+                <button className="btn" onClick={refreshRuntimeLogs}>Refresh</button>
+              </div>
+            </div>
             <pre className="log">{runtimeLogs || "Runtime logs not loaded."}</pre>
           </section>
         </>

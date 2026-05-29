@@ -57,4 +57,57 @@ export async function runtimeRoutes(app: FastifyInstance) {
     await runDockerCommand(["restart", deployment.containerName], 20_000);
     return { ok: true };
   });
+
+  app.get("/api/projects/:id/stats", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({ id: z.string().uuid() }).parse(request.params);
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const activeDeployment = await prisma.deployment.findFirst({
+      where: { projectId: project.id, status: "running", containerName: { not: null } }
+    });
+
+    const activeDatabases = await prisma.databaseService.findMany({
+      where: { projectId: project.id, status: "running" }
+    });
+
+    const containerNames: string[] = [];
+    if (activeDeployment?.containerName) {
+      containerNames.push(activeDeployment.containerName);
+    }
+    for (const db of activeDatabases) {
+      containerNames.push(db.containerName);
+    }
+
+    if (containerNames.length === 0) {
+      return { stats: [] };
+    }
+
+    try {
+      const { stdout } = await runDockerCommand([
+        "stats",
+        "--no-stream",
+        "--format",
+        "{{.Name}},{{.CPUPerc}},{{.MemUsage}},{{.MemPerc}}",
+        ...containerNames
+      ], 15_000);
+
+      const lines = stdout.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      const stats = lines.map((line) => {
+        const [name, cpu, memoryUsage, memoryPerc] = line.split(",");
+        return {
+          name: name?.trim(),
+          cpu: cpu?.trim(),
+          memoryUsage: memoryUsage?.trim(),
+          memoryPerc: memoryPerc?.trim()
+        };
+      });
+
+      return { stats };
+    } catch (error) {
+      request.log.warn({ error }, "failed to read container stats");
+      return { stats: [] };
+    }
+  });
 }

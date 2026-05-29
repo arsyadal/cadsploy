@@ -8,6 +8,16 @@ import { regenerateCaddyfile } from "./proxy.js";
 
 const prisma = new PrismaClient();
 
+function toWslPath(windowsPath: string): string {
+  let p = windowsPath.replace(/\\/g, "/");
+  const match = p.match(/^([a-zA-Z]):/);
+  if (match) {
+    const drive = match[1].toLowerCase();
+    p = p.replace(/^[a-zA-Z]:/, `/mnt/${drive}`);
+  }
+  return p;
+}
+
 async function addLog(deploymentId: string, line: string, stream: LogStream = "stdout") {
   const safeLine = line.length > 4000 ? `${line.slice(0, 4000)}…` : line;
   await prisma.buildLog.create({ data: { deploymentId, line: safeLine, stream } });
@@ -106,6 +116,20 @@ export async function deploy(deploymentId: string) {
       .filter((item) => scopeAllows(item.scope, "runtime"))
       .flatMap((item) => ["-e", `${item.key}=${decryptText(item.valueEncrypted)}`]);
 
+    // Fetch and create persistent volumes mounts
+    const volumes = await prisma.persistentVolume.findMany({
+      where: { projectId: project.id }
+    });
+
+    const volumeArgs: string[] = [];
+    for (const volume of volumes) {
+      const hostVolumePath = join(config.volumesDir, `${project.slug}-${volume.name}`);
+      await mkdir(hostVolumePath, { recursive: true });
+      const wslVolumePath = toWslPath(hostVolumePath);
+      volumeArgs.push("-v", `${wslVolumePath}:${volume.containerPath}`);
+      await log(`Mounting persistent volume: ${volume.name} -> ${volume.containerPath}`);
+    }
+
     await log("Replacing runtime container");
     await runCommand("docker", ["rm", "-f", containerName], { onLog: log, timeoutMs: 30_000 }).catch(() => undefined);
     await runCommand(
@@ -128,6 +152,7 @@ export async function deploy(deploymentId: string) {
         "-e",
         `PORT=${project.appPort}`,
         ...runtimeEnv,
+        ...volumeArgs,
         deployment.imageTag,
       ],
       { onLog: log, timeoutMs: 60_000 },

@@ -512,4 +512,71 @@ export async function projectRoutes(app: FastifyInstance) {
       throw app.httpErrors.notFound("Backup file not found on disk");
     }
   });
+
+  app.get("/api/projects/:id/volumes", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({ id: z.string().uuid() }).parse(request.params);
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const volumes = await prisma.persistentVolume.findMany({
+      where: { projectId: project.id },
+      orderBy: { createdAt: "asc" }
+    });
+    return { volumes };
+  });
+
+  app.post("/api/projects/:id/volumes", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({ id: z.string().uuid() }).parse(request.params);
+    const body = z.object({
+      name: z.string().min(2).max(30).regex(/^[a-z0-9-]+$/),
+      containerPath: z.string().min(1).max(255).startsWith("/")
+    }).parse(request.body);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const conflict = await prisma.persistentVolume.findUnique({
+      where: { projectId_name: { projectId: project.id, name: body.name } }
+    });
+    if (conflict) {
+      throw app.httpErrors.conflict("A volume with this name already exists in this project");
+    }
+
+    const volume = await prisma.persistentVolume.create({
+      data: {
+        projectId: project.id,
+        name: body.name,
+        containerPath: body.containerPath
+      }
+    });
+
+    return { volume };
+  });
+
+  app.delete("/api/projects/:id/volumes/:volumeId", async (request) => {
+    const user = await requireUser(request);
+    const params = z.object({
+      id: z.string().uuid(),
+      volumeId: z.string().uuid()
+    }).parse(request.params);
+
+    const project = await prisma.project.findFirst({ where: { id: params.id, userId: user.id } });
+    if (!project) throw app.httpErrors.notFound("Project not found");
+
+    const volume = await prisma.persistentVolume.findFirst({
+      where: { id: params.volumeId, projectId: project.id }
+    });
+    if (!volume) throw app.httpErrors.notFound("Volume not found");
+
+    const volumeHostPath = path.resolve(config.volumesDir, `${project.slug}-${volume.name}`);
+    await fs.rm(volumeHostPath, { recursive: true, force: true }).catch(() => undefined);
+
+    await prisma.persistentVolume.delete({
+      where: { id: volume.id }
+    });
+
+    return { ok: true };
+  });
 }

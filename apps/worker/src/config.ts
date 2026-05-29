@@ -26,5 +26,6 @@ export const config = {
   caddyfile: resolvePath(required("CADSPLOY_CADDYFILE", "./infra/Caddyfile.generated")),
   caddyReloadCommand: process.env.CADSPLOY_CADDY_RELOAD_COMMAND ?? "",
   backupsDir: resolvePath(required("CADSPLOY_BACKUPS_DIR", "backups")),
+  volumesDir: resolvePath(required("CADSPLOY_VOLUMES_DIR", "volumes")),
 };
 
