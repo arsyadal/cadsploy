@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently -n api,worker,web -c cyan,yellow,green \"npm run dev -w @cadsploy/api\" \"npm run dev -w @cadsploy/worker\" \"npm run dev -w @cadsploy/web\"",
+    "dev": "concurrently -n api,worker,web,wsl -c cyan,yellow,green,magenta \"npm run dev -w @cadsploy/api\" \"npm run dev -w @cadsploy/worker\" \"npm run dev -w @cadsploy/web\" \"wsl sleep infinity\"",
     "build": "npm run build -w @cadsploy/api && npm run build -w @cadsploy/worker && npm run build -w @cadsploy/web",
     "typecheck": "npm run typecheck -w @cadsploy/api && npm run typecheck -w @cadsploy/worker && npm run typecheck -w @cadsploy/web",
     "prisma:generate": "prisma generate --schema apps/api/prisma/schema.prisma",

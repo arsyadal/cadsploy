@@ -38,6 +38,12 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
   const [env, setEnv] = useState<EnvPayload["env"]>([]);
   const [envKey, setEnvKey] = useState("");
   const [envValue, setEnvValue] = useState("");
+  const [projectDomains, setProjectDomains] = useState<Array<{ id: string; hostname: string; type: string; status: string }>>([]);
+  const [domainHostname, setDomainHostname] = useState("");
+  const [projectDatabases, setProjectDatabases] = useState<Array<{ id: string; name: string; type: string; status: string; containerName: string; dbName?: string; dbUser?: string; dbPassword?: string; port: number; hostPort: number }>>([]);
+  const [newDbName, setNewDbName] = useState("");
+  const [newDbType, setNewDbType] = useState<"postgres" | "redis">("postgres");
+  const [revealPasswords, setRevealPasswords] = useState<Record<string, boolean>>({});
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -57,6 +63,10 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
       }
       const envPayload = await apiFetch<EnvPayload>(`/api/projects/${id}/env`);
       setEnv(envPayload.env);
+      const domainsPayload = await apiFetch<{ domains: typeof projectDomains }>(`/api/projects/${id}/domains`);
+      setProjectDomains(domainsPayload.domains);
+      const databasesPayload = await apiFetch<{ databases: typeof projectDatabases }>(`/api/projects/${id}/databases`);
+      setProjectDatabases(databasesPayload.databases);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load project");
     }
@@ -137,6 +147,64 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
     }
   }
 
+  async function addCustomDomain(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!projectId || !domainHostname.trim()) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/domains`, {
+        method: "POST",
+        body: JSON.stringify({ hostname: domainHostname.trim().toLowerCase() }),
+      });
+      setDomainHostname("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add domain");
+    }
+  }
+
+  async function deleteDomain(domainId: string) {
+    if (!projectId || !confirm("Remove this domain? Caddy configuration will update automatically.")) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/domains/${domainId}`, {
+        method: "DELETE",
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete domain");
+    }
+  }
+
+  async function deployNewDatabase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!projectId || !newDbName.trim()) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/databases`, {
+        method: "POST",
+        body: JSON.stringify({ name: newDbName.trim().toLowerCase(), type: newDbType }),
+      });
+      setNewDbName("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to deploy database");
+    }
+  }
+
+  async function removeDatabase(databaseId: string) {
+    if (!projectId || !confirm("Tear down and delete this database instance? All stored data will be permanently lost.")) return;
+    setError("");
+    try {
+      await apiFetch(`/api/projects/${projectId}/databases/${databaseId}`, {
+        method: "DELETE",
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete database");
+    }
+  }
+
   return (
     <main className="shell">
       <nav className="nav">
@@ -185,6 +253,156 @@ export default function ProjectPage({ params }: { params: Promise<{ id: string }
                 <button className="btn primary">Save env</button>
               </form>
               <p className="muted">{env.map((item) => item.key).join(", ") || "No env vars"}</p>
+            </section>
+          </div>
+
+          <div className="two-col" style={{ marginTop: 18 }}>
+            <section className="panel">
+              <h2>Add Custom Domain</h2>
+              <form className="form" onSubmit={addCustomDomain}>
+                <div className="field">
+                  <label>Domain Hostname</label>
+                  <input
+                    value={domainHostname}
+                    onChange={(event) => setDomainHostname(event.target.value)}
+                    placeholder="my-app.customdomain.com"
+                  />
+                </div>
+                <button className="btn primary">Save Domain</button>
+              </form>
+            </section>
+
+            <section className="panel">
+              <h2>Active Domains</h2>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Domain</th>
+                    <th>Type</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectDomains.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <a href={`http://${item.hostname}:8080`} target="_blank" rel="noreferrer">
+                          {item.hostname}
+                        </a>
+                      </td>
+                      <td>
+                        <span className={`status ${item.type === "generated" ? "building" : "running"}`}>
+                          {item.type}
+                        </span>
+                      </td>
+                      <td>
+                        {item.type === "custom" ? (
+                          <button className="btn danger" onClick={() => deleteDomain(item.id)}>
+                            Delete
+                          </button>
+                        ) : (
+                          <span className="muted">System</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          </div>
+
+          <div className="two-col" style={{ marginTop: 18 }}>
+            <section className="panel">
+              <h2>Deploy Database Service</h2>
+              <form className="form" onSubmit={deployNewDatabase}>
+                <div className="field">
+                  <label>Database Name</label>
+                  <input
+                    value={newDbName}
+                    onChange={(event) => setNewDbName(event.target.value)}
+                    placeholder="my-db"
+                  />
+                </div>
+                <div className="field">
+                  <label>Database Type</label>
+                  <select
+                    value={newDbType}
+                    onChange={(event) => setNewDbType(event.target.value as "postgres" | "redis")}
+                  >
+                    <option value="postgres">PostgreSQL 16 (Alpine)</option>
+                    <option value="redis">Redis 7 (Alpine)</option>
+                  </select>
+                </div>
+                <button className="btn primary">Deploy Database</button>
+              </form>
+            </section>
+
+            <section className="panel">
+              <h2>Managed Databases</h2>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Service / Host Info</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectDatabases.map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <strong>{item.name}</strong> <span className="muted">({item.type})</span>
+                        <div style={{ fontSize: 12, marginTop: 4, lineHeight: 1.4 }}>
+                          <div>Internal Host: <code>{item.containerName}:{item.port}</code></div>
+                          <div>Host Port (Windows): <code>{item.hostPort}</code></div>
+                          {item.type === "postgres" && (
+                            <div style={{ marginTop: 4 }}>
+                              <div>DB Name: <code>{item.dbName}</code></div>
+                              <div>DB User: <code>{item.dbUser}</code></div>
+                              <div>
+                                DB Password:{" "}
+                                <code>
+                                  {revealPasswords[item.id] ? item.dbPassword : "••••••••"}
+                                </code>{" "}
+                                <button
+                                  className="btn"
+                                  style={{ padding: "2px 6px", fontSize: 10, marginLeft: 4 }}
+                                  onClick={() =>
+                                    setRevealPasswords((prev) => ({
+                                      ...prev,
+                                      [item.id]: !prev[item.id]
+                                    }))
+                                  }
+                                >
+                                  {revealPasswords[item.id] ? "Hide" : "Reveal"}
+                                </button>
+                              </div>
+                              <div style={{ marginTop: 4, color: "var(--accent)" }}>
+                                Connection URL:{" "}
+                                <code style={{ fontSize: 10 }}>
+                                  {revealPasswords[item.id]
+                                    ? `postgresql://${item.dbUser}:${item.dbPassword}@${item.containerName}:${item.port}/${item.dbName}`
+                                    : `postgresql://${item.dbUser}:••••••••@${item.containerName}:${item.port}/${item.dbName}`}
+                                </code>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`status ${item.status === "running" ? "running" : item.status === "failed" ? "failed" : "building"}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td>
+                        <button className="btn danger" onClick={() => removeDatabase(item.id)}>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </section>
           </div>
 

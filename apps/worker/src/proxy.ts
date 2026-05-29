@@ -27,7 +27,9 @@ export async function regenerateCaddyfile(prisma: PrismaClient) {
     seenProjects.add(deployment.projectId);
 
     for (const domain of deployment.project.domains.filter((item) => item.status === "active")) {
-      blocks.push(`${escapeCaddy(domain.hostname)} {\n  encode zstd gzip\n  reverse_proxy ${escapeCaddy(deployment.containerName)}:${deployment.project.appPort}\n}`);
+      const hostname = domain.hostname.toLowerCase();
+      const prefix = (hostname === "localhost" || hostname.endsWith(".localhost") || process.env.NODE_ENV === "development") ? "http://" : "";
+      blocks.push(`${prefix}${escapeCaddy(domain.hostname)} {\n  encode zstd gzip\n  reverse_proxy ${escapeCaddy(deployment.containerName)}:${deployment.project.appPort}\n}`);
     }
   }
 

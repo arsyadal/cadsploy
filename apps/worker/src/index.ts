@@ -1,9 +1,13 @@
 import { Worker, type ConnectionOptions } from "bullmq";
+import { PrismaClient } from "@prisma/client";
 import { config } from "./config.js";
 import { deploy } from "./deploy.js";
+import { regenerateCaddyfile } from "./proxy.js";
+import { deployDatabase, deleteDatabase } from "./database.js";
 
 type DeployJob = {
-  deploymentId: string;
+  deploymentId?: string;
+  databaseId?: string;
 };
 
 function redisOptions(url: string): ConnectionOptions {
@@ -18,10 +22,23 @@ function redisOptions(url: string): ConnectionOptions {
   };
 }
 
-const worker = new Worker<DeployJob, void, "deploy">(
+const prisma = new PrismaClient();
+
+const worker = new Worker<DeployJob, void, string>(
   "deployments",
   async (job) => {
-    await deploy(job.data.deploymentId);
+    if (job.name === "deploy") {
+      if (!job.data.deploymentId) throw new Error("Missing deploymentId for deploy job");
+      await deploy(job.data.deploymentId);
+    } else if (job.name === "regenerate-caddy") {
+      await regenerateCaddyfile(prisma);
+    } else if (job.name === "deploy-database") {
+      if (!job.data.databaseId) throw new Error("Missing databaseId for deploy-database job");
+      await deployDatabase(job.data.databaseId);
+    } else if (job.name === "delete-database") {
+      if (!job.data.databaseId) throw new Error("Missing databaseId for delete-database job");
+      await deleteDatabase(job.data.databaseId);
+    }
   },
   {
     connection: redisOptions(config.redisUrl),

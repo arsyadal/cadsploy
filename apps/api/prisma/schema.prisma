@@ -91,10 +91,11 @@ model Project {
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deployments Deployment[]
-  envVars     EnvVar[]
-  domains     Domain[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deployments      Deployment[]
+  envVars          EnvVar[]
+  domains          Domain[]
+  databaseServices DatabaseService[]
 
   @@index([userId])
   @@map("projects")
@@ -160,3 +161,60 @@ model Domain {
   @@index([projectId])
   @@map("domains")
 }
+
+enum DatabaseType {
+  postgres
+  redis
+}
+
+enum DatabaseStatus {
+  creating
+  running
+  failed
+  deleted
+}
+
+model DatabaseService {
+  id            String         @id @default(uuid())
+  projectId     String         @map("project_id")
+  name          String
+  type          DatabaseType
+  status        DatabaseStatus @default(creating)
+  containerName String         @map("container_name")
+  dbName        String?        @map("db_name")
+  dbUser        String?        @map("db_user")
+  dbPassword    String?        @map("db_password")
+  port          Int
+  hostPort      Int            @map("host_port")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  backups DatabaseBackup[]
+
+  @@index([projectId])
+  @@map("database_services")
+}
+
+enum BackupStatus {
+  pending
+  completed
+  failed
+}
+
+model DatabaseBackup {
+  id                String       @id @default(uuid())
+  databaseServiceId String       @map("database_service_id")
+  fileName          String       @map("file_name")
+  fileSize          Int?         @map("file_size")
+  status            BackupStatus @default(pending)
+  errorMessage      String?      @map("error_message")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  completedAt       DateTime?    @map("completed_at")
+
+  databaseService DatabaseService @relation(fields: [databaseServiceId], references: [id], onDelete: Cascade)
+
+  @@index([databaseServiceId])
+  @@map("database_backups")
+}
+

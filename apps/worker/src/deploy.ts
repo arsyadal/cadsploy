@@ -42,7 +42,7 @@ export async function deploy(deploymentId: string) {
 
   const project = deployment.project;
   const containerName = `cadsploy-${project.slug}`;
-  const workdir = join(process.cwd(), config.workdir, deployment.id);
+  const workdir = join(config.workdir, deployment.id);
   const repoDir = join(workdir, "repo");
 
   const log = (line: string, stream: LogStream = "stdout") => addLog(deployment.id, line, stream);

@@ -2,7 +2,8 @@ import { Queue, type ConnectionOptions } from "bullmq";
 import { config } from "./config.js";
 
 export type DeployJob = {
-  deploymentId: string;
+  deploymentId?: string;
+  databaseId?: string;
 };
 
 export function redisOptions(url: string): ConnectionOptions {
@@ -17,7 +18,7 @@ export function redisOptions(url: string): ConnectionOptions {
   };
 }
 
-export const deployQueue = new Queue<DeployJob, void, "deploy">("deployments", {
+export const deployQueue = new Queue<DeployJob, void, string>("deployments", {
   connection: redisOptions(config.redisUrl),
   defaultJobOptions: {
     attempts: 1,
