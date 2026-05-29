@@ -393,7 +393,71 @@ $ wsl tar -czf backups/backup-vol-2026.tar.gz -C volumes/ app-uploads/
         </div>
       </section>
 
-      {/* 5. Call to Action (CTA) */}
+      {/* 5. Pricing Plans */}
+      <h2 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "28px", textTransform: "uppercase", letterSpacing: -1, margin: "64px 0 20px", textAlign: "center" }}>
+        Simple, Predictable Plans
+      </h2>
+      <p className="muted" style={{ fontSize: "14px", textAlign: "center", maxWidth: "680px", margin: "-10px auto 40px", lineHeight: 1.5 }}>
+        Pilih paket yang sesuai dengan kebutuhan pengembangan Anda. Penagihan dan sistem pembayaran (Billing) saat ini ditandai sebagai di luar cakupan MVP (Out of Scope) di dokumen prd.md, sehingga paket ini bersifat statis/opsional untuk rencana masa depan.
+      </p>
+
+      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "28px", marginBottom: "64px", maxWidth: "860px", marginLeft: "auto", marginRight: "auto" }}>
+        {/* Free Plan */}
+        <div className="card" style={{ padding: "32px", border: "1px solid var(--line)", background: "rgba(26, 24, 18, 0.8)", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative" }}>
+          <div>
+            <span style={{ fontSize: "10px", background: "rgba(255,255,255,0.08)", color: "var(--muted)", padding: "2px 8px", textTransform: "uppercase", letterSpacing: 0.5 }}>DEVELOPER</span>
+            <h3 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "24px", margin: "10px 0" }}>Free Tier</h3>
+            <div style={{ margin: "14px 0 20px" }}>
+              <span style={{ fontSize: "36px", fontFamily: "Archivo Black, sans-serif", color: "var(--accent)" }}>$0</span>
+              <span className="muted" style={{ fontSize: "12px" }}> / selamanya</span>
+            </div>
+            <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.4, marginBottom: "20px", borderBottom: "1px solid var(--line)", paddingBottom: "14px" }}>
+              Sangat cocok untuk portofolio pribadi, uji coba aplikasi, dan proyek skala hobi.
+            </p>
+            <ul style={{ paddingLeft: "18px", fontSize: "12px", lineHeight: 2, color: "var(--ink)", margin: 0 }}>
+              <li>Maksimal 1 Proyek Aktif</li>
+              <li>RAM Maksimum <code>256 MB</code> per kontainer</li>
+              <li>CPU Maksimum <code>0.2 Cores</code></li>
+              <li>Subdomain Otomatis (<code>*.cadsploy.id</code>)</li>
+              <li>Database Hobi (SQLite via Persistent Volume)</li>
+              <li>Hibernasi otomatis setelah 15 menit sepi</li>
+            </ul>
+          </div>
+          <a className="btn" href={`${apiUrl}/auth/github`} style={{ marginTop: "32px", width: "100%" }}>
+            Start Shipping Free
+          </a>
+        </div>
+
+        {/* Pro Plan */}
+        <div className="card" style={{ padding: "32px", border: "2px solid var(--accent)", background: "rgba(26, 24, 18, 0.95)", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative", boxShadow: "6px 6px 0 #000" }}>
+          <div style={{ position: "absolute", top: "-12px", right: "20px", background: "var(--accent)", color: "#111", padding: "2px 10px", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>POPULAR</div>
+          <div>
+            <span style={{ fontSize: "10px", background: "var(--accent)", color: "#111", padding: "2px 8px", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 700 }}>PRODUCTION</span>
+            <h3 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "24px", margin: "10px 0" }}>Pro Cloud</h3>
+            <div style={{ margin: "14px 0 20px" }}>
+              <span style={{ fontSize: "36px", fontFamily: "Archivo Black, sans-serif", color: "var(--accent)" }}>$6</span>
+              <span className="muted" style={{ fontSize: "12px" }}> / bulan</span>
+            </div>
+            <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.4, marginBottom: "20px", borderBottom: "1px solid var(--line)", paddingBottom: "14px" }}>
+              Dirancang untuk aplikasi produksi SaaS, API bisnis, dan basis data dedicated berkinerja tinggi.
+            </p>
+            <ul style={{ paddingLeft: "18px", fontSize: "12px", lineHeight: 2, color: "var(--ink)", margin: 0 }}>
+              <li><strong>Hingga 10 Proyek Aktif</strong></li>
+              <li>RAM Maksimum <code>2 GB</code> per kontainer</li>
+              <li>CPU Maksimum <code>2.0 Cores</code> (prioritas penuh)</li>
+              <li>Mendukung <strong>Custom Domain</strong> Anda sendiri</li>
+              <li><strong>Dedicated Database</strong> (PostgreSQL & Redis)</li>
+              <li>Selalu Aktif 24/7 (Tanpa Hibernasi)</li>
+              <li>Pencadangan volume (.tar.gz) otomatis harian</li>
+            </ul>
+          </div>
+          <a className="btn primary" href={`${apiUrl}/auth/github`} style={{ marginTop: "32px", width: "100%" }}>
+            Go Pro Now
+          </a>
+        </div>
+      </section>
+
+      {/* 6. Call to Action (CTA) */}
       <section className="panel" style={{ textAlign: "center", padding: "48px 24px", background: "var(--accent)", color: "#111", border: "3px solid #000", boxShadow: "12px 12px 0 #000", marginBottom: "80px" }}>
         <h2 style={{ fontFamily: "Archivo Black, sans-serif", fontSize: "36px", textTransform: "uppercase", letterSpacing: -1, margin: "0 0 14px", color: "#111" }}>
           Deploy Your Application in Seconds
