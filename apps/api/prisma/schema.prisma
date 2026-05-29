@@ -266,3 +266,22 @@ model VolumeBackup {
   @@map("volume_backups")
 }
 
+model StatusSubscriber {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  confirmed   Boolean  @default(false)
+  token       String   @unique @default(uuid())
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("status_subscribers")
+}
+
+model SystemStatusLog {
+  id         String   @id @default(uuid())
+  status     String   // "operational" | "partial_outage" | "major_outage"
+  details    Json     // full services object
+  notified   Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("system_status_logs")
+}

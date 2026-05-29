@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { deployQueue } from "./queue.js";
+import { config } from "./config.js";
+import { sendStatusChangeEmail } from "./email.js";
 
 const prisma = new PrismaClient();
 
@@ -144,6 +146,89 @@ export function startScheduler() {
 
     } catch (error) {
       console.error("[scheduler] Error in auto-backups loop:", error);
+    }
+  }, 60_000);
+
+  // 3. Status Change Monitor (every 60 seconds) — send emails when status changes
+  setInterval(async () => {
+    try {
+      // Inline health check (same logic as /api/status/health)
+      let dbStatus: "operational" | "major_outage" = "operational";
+      try { await prisma.$queryRaw`SELECT 1`; } catch { dbStatus = "major_outage"; }
+
+      let redisStatus: "operational" | "major_outage" = "operational";
+      try {
+        const net = await import("node:net");
+        await new Promise<void>((resolve, reject) => {
+          const socket = net.connect(6379, "127.0.0.1", () => { socket.end(); resolve(); });
+          socket.on("error", reject);
+          socket.setTimeout(2000, () => { socket.destroy(); reject(new Error("timeout")); });
+        });
+      } catch { redisStatus = "major_outage"; }
+
+      let dockerStatus: "operational" | "major_outage" = "operational";
+      try {
+        const { execFile } = await import("node:child_process");
+        const { promisify } = await import("node:util");
+        const exec = promisify(execFile);
+        const cmd = process.platform === "win32" ? "wsl" : "docker";
+        const args = process.platform === "win32" ? ["docker", "info"] : ["info"];
+        await exec(cmd, args, { timeout: 8000 });
+      } catch { dockerStatus = "major_outage"; }
+
+      let caddyStatus: "operational" | "major_outage" = "operational";
+      try {
+        const net = await import("node:net");
+        await new Promise<void>((resolve, reject) => {
+          const socket = net.connect(8080, "127.0.0.1", () => { socket.end(); resolve(); });
+          socket.on("error", reject);
+          socket.setTimeout(3000, () => { socket.destroy(); reject(new Error("timeout")); });
+        });
+      } catch { caddyStatus = "major_outage"; }
+
+      let overallStatus: "operational" | "partial_outage" | "major_outage" = "operational";
+      if (dbStatus === "major_outage" || redisStatus === "major_outage" || dockerStatus === "major_outage") {
+        overallStatus = "major_outage";
+      } else if (caddyStatus === "major_outage") {
+        overallStatus = "partial_outage";
+      }
+
+      const services = { api: "operational", worker: "operational", caddy: caddyStatus, docker: dockerStatus, postgres: dbStatus, redis: redisStatus };
+
+      // Check last logged status
+      const lastLog = await prisma.systemStatusLog.findFirst({ orderBy: { createdAt: "desc" } });
+      const lastStatus = lastLog?.status ?? "operational";
+
+      // Only act if status changed
+      if (lastStatus !== overallStatus) {
+        console.log(`[scheduler] Status changed: ${lastStatus} → ${overallStatus}`);
+
+        // Log the change
+        await prisma.systemStatusLog.create({
+          data: { status: overallStatus, details: services, notified: false }
+        });
+
+        // Notify all confirmed subscribers
+        const subscribers = await prisma.statusSubscriber.findMany({ where: { confirmed: true } });
+        console.log(`[scheduler] Notifying ${subscribers.length} subscriber(s)`);
+
+        for (const sub of subscribers) {
+          try {
+            await sendStatusChangeEmail(sub.email, sub.token, config.publicAppUrl, overallStatus, services);
+            console.log(`[scheduler] Notified ${sub.email}`);
+          } catch (err) {
+            console.error(`[scheduler] Failed to notify ${sub.email}:`, err);
+          }
+        }
+
+        // Mark as notified
+        const latest = await prisma.systemStatusLog.findFirst({ orderBy: { createdAt: "desc" } });
+        if (latest) {
+          await prisma.systemStatusLog.update({ where: { id: latest.id }, data: { notified: true } });
+        }
+      }
+    } catch (error) {
+      console.error("[scheduler] Error in status monitor loop:", error);
     }
   }, 60_000);
 }

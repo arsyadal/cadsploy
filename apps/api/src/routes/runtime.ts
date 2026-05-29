@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import os from "node:os";
+import { fileURLToPath } from "node:url";
+import { join, dirname } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requireUser } from "../auth.js";
@@ -224,15 +226,31 @@ export async function runtimeRoutes(app: FastifyInstance) {
       dockerStatus = "major_outage";
     }
 
-    // 4. Check Caddy (check if Caddyfile generated exists)
+    // 4. Check Caddy — verify container is reachable on port 8080
     let caddyStatus: "operational" | "major_outage" = "operational";
     try {
-      const fs = await import("node:fs/promises");
-      const path = await import("node:path");
-      const caddyfile = path.resolve("./infra/Caddyfile.generated");
-      await fs.access(caddyfile);
+      const net = await import("node:net");
+      await new Promise<void>((resolve, reject) => {
+        const socket = net.connect(8080, "127.0.0.1", () => {
+          socket.end();
+          resolve();
+        });
+        socket.on("error", reject);
+        socket.setTimeout(3000, () => {
+          socket.destroy();
+          reject(new Error("Caddy TCP timeout"));
+        });
+      });
     } catch {
-      caddyStatus = "major_outage";
+      // Fallback: check if Caddyfile.generated exists on disk
+      try {
+        const fs = await import("node:fs/promises");
+        const __dirname = dirname(fileURLToPath(import.meta.url));
+        const caddyfile = join(__dirname, "../../../infra/Caddyfile.generated");
+        await fs.access(caddyfile);
+      } catch {
+        caddyStatus = "major_outage";
+      }
     }
 
     // Overall Status

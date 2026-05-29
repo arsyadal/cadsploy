@@ -26,6 +26,11 @@ export const config = {
   githubCallbackUrl: required("GITHUB_CALLBACK_URL", "http://localhost:4000/auth/github/callback"),
   backupsDir: resolve(repoRoot, "backups"),
   volumesDir: resolve(repoRoot, "volumes"),
+  smtpHost: process.env.SMTP_HOST ?? "smtp.gmail.com",
+  smtpPort: Number(process.env.SMTP_PORT ?? 465),
+  smtpUser: process.env.SMTP_USER ?? "",
+  smtpPass: process.env.SMTP_PASS ?? "",
+  smtpFrom: process.env.SMTP_FROM ?? "Cadsploy Status <noreply@cadsploy.dev>",
 };
 
 export const isProduction = config.nodeEnv === "production";

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { apiUrl } from "../../lib/api";
 
 type ServiceStatus = "operational" | "major_outage" | "partial_outage" | "loading";
@@ -24,6 +25,29 @@ export default function StatusPage() {
   const [email, setEmail] = useState<string>("");
   const [subscribed, setSubscribed] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [subscribeError, setSubscribeError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "info" } | null>(null);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Handle confirmation/unsubscription redirect from API
+  useEffect(() => {
+    if (searchParams.get("subscribed") === "1") {
+      setToast({ msg: "Email confirmed. You are now subscribed to status updates.", type: "success" });
+      router.replace("/status");
+    } else if (searchParams.get("unsubscribed") === "1") {
+      setToast({ msg: "You have been unsubscribed from status updates.", type: "info" });
+      router.replace("/status");
+    }
+  }, [searchParams, router]);
+
+  // Auto-dismiss toast after 6s
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 6000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   useEffect(() => {
     async function fetchStatus() {
@@ -117,16 +141,33 @@ export default function StatusPage() {
     { key: "observability", name: "Observability", mock: true }
   ] as const;
 
-  const handleSubscribeSubmit = (e: React.FormEvent) => {
+  const handleSubscribeSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes("@")) return;
     setSubmitting(true);
-    setTimeout(() => {
+    setSubscribeError(null);
+
+    try {
+      const res = await fetch(`${apiUrl}/api/status/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        setSubscribeError(json.error ?? "Failed to subscribe. Please try again.");
+      } else {
+        setSubscribed(true);
+        setEmail("");
+      }
+    } catch {
+      setSubscribeError("Network error. Please check your connection and try again.");
+    } finally {
       setSubmitting(false);
-      setSubscribed(true);
-      setEmail("");
-    }, 1200);
-  };
+    }
+  }, [email]);
 
   const renderTimelineTicks = (serviceStatus: ServiceStatus) => {
     const isDown = serviceStatus === "major_outage";
@@ -331,7 +372,34 @@ export default function StatusPage() {
   return (
     <main style={{ maxWidth: "800px", margin: "0 auto", padding: "40px 16px 80px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" }}>
       
+      {/* Toast notification */}
+      {toast && (
+        <div style={{
+          position: "fixed",
+          top: "20px",
+          right: "20px",
+          zIndex: 99999,
+          background: toast.type === "success" ? "rgba(16,185,129,0.95)" : "rgba(59,130,246,0.95)",
+          color: "#fff",
+          padding: "14px 20px",
+          borderRadius: "6px",
+          fontSize: "13px",
+          fontWeight: 500,
+          maxWidth: "360px",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
+          animation: "fade-in 0.3s ease",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px"
+        }}>
+          <span>{toast.type === "success" ? "✓" : "ℹ"}</span>
+          <span>{toast.msg}</span>
+          <button onClick={() => setToast(null)} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", marginLeft: "auto", fontSize: "16px", opacity: 0.7 }}>✕</button>
+        </div>
+      )}
+
       {/* Navigation Header */}
+
       <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px" }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "#fff" }}>
           <span style={{ 
@@ -584,9 +652,9 @@ export default function StatusPage() {
                 }}>
                   ✓
                 </div>
-                <h4 style={{ color: "#fff", margin: "0 0 8px" }}>Successfully Subscribed</h4>
+                <h4 style={{ color: "#fff", margin: "0 0 8px" }}>Check your inbox</h4>
                 <p style={{ color: "#71717a", fontSize: "13px", margin: 0 }}>
-                  You will now receive email notifications whenever we schedule maintenance or post system incidents.
+                  A confirmation email has been sent to your address. Click the link in the email to complete your subscription.
                 </p>
                 <button
                   onClick={() => setShowSubscribeModal(false)}
@@ -637,6 +705,11 @@ export default function StatusPage() {
                   />
                 </div>
 
+                {subscribeError && (
+                  <div style={{ fontSize: "12px", color: "#ef4444", marginBottom: "12px", padding: "8px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "4px" }}>
+                    {subscribeError}
+                  </div>
+                )}
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
                   <button
                     type="button"
@@ -662,14 +735,15 @@ export default function StatusPage() {
                       borderRadius: "4px",
                       padding: "10px 20px",
                       fontWeight: 600,
-                      cursor: "pointer",
+                      cursor: submitting ? "not-allowed" : "pointer",
                       fontSize: "13px",
                       display: "flex",
                       alignItems: "center",
-                      gap: "6px"
+                      gap: "6px",
+                      opacity: submitting ? 0.7 : 1
                     }}
                   >
-                    {submitting ? "Subscribing..." : "Subscribe"}
+                    {submitting ? "Sending..." : "Subscribe"}
                   </button>
                 </div>
               </form>
@@ -684,6 +758,10 @@ export default function StatusPage() {
           0% { transform: scale(0.92); opacity: 0.6; box-shadow: 0 0 4px var(--accent); }
           50% { transform: scale(1.08); opacity: 1; box-shadow: 0 0 12px var(--accent); }
           100% { transform: scale(0.92); opacity: 0.6; box-shadow: 0 0 4px var(--accent); }
+        }
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(-8px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
         .service-row:hover {
           background: #18181b !important;

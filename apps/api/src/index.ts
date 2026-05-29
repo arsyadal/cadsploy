@@ -10,6 +10,7 @@ import { authRoutes } from "./routes/auth.js";
 import { projectRoutes } from "./routes/projects.js";
 import { repoRoutes } from "./routes/repos.js";
 import { runtimeRoutes } from "./routes/runtime.js";
+import { statusSubscriberRoutes } from "./routes/status-subscribers.js";
 import { startScheduler } from "./scheduler.js";
 
 const app = Fastify({ logger: true });
@@ -46,6 +47,7 @@ await app.register(authRoutes);
 await app.register(repoRoutes);
 await app.register(projectRoutes);
 await app.register(runtimeRoutes);
+await app.register(statusSubscriberRoutes);
 
 await app.listen({ port: config.port, host: "0.0.0.0" });
 startScheduler();
